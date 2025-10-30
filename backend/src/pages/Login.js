@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { Form, Button } from 'react-bootstrap';
+import PasswordInput from '../../../frontend/src/components/PasswordInput';
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const id = sessionStorage.getItem("id");
@@ -111,69 +111,29 @@ function Login() {
   };
 
   return (
-    <div className="vh-100 d-flex align-items-center justify-content-center" style={{ background: "#f8f9fa" }}>
-      <div className="row w-100 h-100 m-0">
-        {/* Login Column */}
-        <div className="col-12 col-md-6 d-flex align-items-center justify-content-center p-3" style={{ background: "#fff" }}>
-          <div style={{ width: "100%", maxWidth: "350px", borderRadius: "16px" }}>
-            <div className="text-center mb-4">
-              <img src="/logo.png" alt="Logo" style={{ width: "150px", marginBottom: "10px" }} />
-              <h3 className="mb-0">Login</h3>
-            </div>
-            <form onSubmit={handleLogin}>
-              <div className="mb-3">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Password</label>
-                <div className="input-group">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    className="form-control"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                  />
-                  <button type="button" className="btn btn-outline-secondary" onClick={() => setShowPassword((prev) => !prev)} tabIndex={-1}>
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-              </div>
-              <button type="submit" className="btn btn-primary w-100">
-                Login
-              </button>
-            </form>
-          </div>
+    <div style={{ display: 'flex', height: '100vh', width: '100%', fontFamily: "Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" }}>
+      <div style={{ flex: '1 1 50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', padding: '2rem' }}>
+  <div style={{ maxWidth: '380px', width: '100%' }}>
+          <div className="text-center mb-4"><img src="/logo.png" alt="Logo" style={{ width: '120px' }} /><h2 className="mt-3 fw-bold">Sign in</h2></div>
+          <Form onSubmit={handleLogin}>
+            <Form.Group className="mb-3">
+              <Form.Label>Username <span className="text-danger">*</span></Form.Label>
+              <Form.Control type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ borderRadius: '0.5rem' }} />
+            </Form.Group>
+            <Form.Group className="mb-4">
+              <Form.Label>Password <span className="text-danger">*</span></Form.Label>
+              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required style={{ borderRadius: '0.5rem' }} />
+            </Form.Group>
+            <Button type="submit" style={{ backgroundColor: '#5044e4', border: 'none', width: '100%', borderRadius: '2rem', fontWeight: '700', padding: '0.75rem' }}>
+              Sign in
+            </Button>
+          </Form>
         </div>
-
-        {/* Info Column */}
-        <div
-          className="col-12 col-md-6 d-flex align-items-center justify-content-center p-4"
-          style={{
-            backgroundImage: "url('/bg.jpg')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            color: "#fff",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ maxWidth: "300px" }}>
-            <h2 style={{ fontWeight: "bold", fontSize: "1.8rem", marginBottom: "10px" }}>
-              School Management <br /> System III
-            </h2>
-            <small style={{ fontSize: "1rem", letterSpacing: "1px" }}>
-              Class Scheduling System
-            </small>
-          </div>
+      </div>
+      <div style={{ flex: '1 1 50%', backgroundImage: "url('/bg.jpg')", backgroundSize: 'cover', backgroundPosition: 'center', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'left' }} className="d-none d-lg-flex">
+        <div>
+          <h1 style={{ fontSize: '3.5rem', fontWeight: '700' }}>School Management<br />System III</h1>
+          <p>Class Scheduling System</p>
         </div>
       </div>
     </div>
