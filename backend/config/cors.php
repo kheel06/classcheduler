@@ -19,7 +19,15 @@ return [
         
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    // Allow the dev frontend ports (3000, 3001, 3100) commonly used when running locally.
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        'http://localhost:3100',
+        'http://127.0.0.1:3100',
+    ],
 
     'allowed_origins_patterns' => [],
 
