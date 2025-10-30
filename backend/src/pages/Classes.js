@@ -238,6 +238,11 @@ function ClassesManagement() {
     rows: { style: { fontSize: "14px" } },
   };
 
+  // derive unique course options from existing classes to populate the dropdown
+  const courseOptions = Array.from(
+    new Set(classes.map((c) => c.course).filter(Boolean))
+  );
+
   return (
     <div
       className={`d-flex min-vh-100 ${
@@ -323,13 +328,19 @@ function ClassesManagement() {
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Course</label>
-                      <input
-                        type="text"
+                      <select
                         className="form-control"
                         value={formData.course}
                         onChange={(e) => setFormData({ ...formData, course: e.target.value })}
                         required
-                      />
+                      >
+                        <option value="">Select course</option>
+                        {courseOptions.map((c, idx) => (
+                          <option key={idx} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="modal-footer">
@@ -382,13 +393,19 @@ function ClassesManagement() {
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Course</label>
-                      <input
-                        type="text"
+                      <select
                         className="form-control"
                         value={formData.course}
                         onChange={(e) => setFormData({ ...formData, course: e.target.value })}
                         required
-                      />
+                      >
+                        <option value="">Select course</option>
+                        {courseOptions.map((c, idx) => (
+                          <option key={idx} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="modal-footer">

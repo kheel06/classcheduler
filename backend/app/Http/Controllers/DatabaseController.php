@@ -94,6 +94,12 @@ class DatabaseController extends Controller
                 $data['password'] = md5($data['password']);
             }
 
+            // Prevent accidental insertion of primary key value
+            // If frontend sends an `id` field (empty or otherwise), remove it so DB can auto-increment.
+            if (isset($data['id'])) {
+                unset($data['id']);
+            }
+
             // Handle file uploads
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
