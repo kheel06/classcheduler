@@ -43,11 +43,11 @@ function SubjectsManagement() {
     {
       name: "Actions",
       cell: (row) => (
-        <button
+          <button
           className="btn btn-sm btn-outline-info"
           onClick={() => openViewSubjectsModal(row.id)}
         >
-          <i className="fa fa-eye me-1"></i> 
+          <i className="bi bi-eye me-1"></i>
         </button>
       ),
       center: true,
@@ -255,22 +255,20 @@ function SubjectsManagement() {
     {
       name: "Actions",
       cell: (row) => (
-        
-        <div className="d-flex justify-content-center">
-        
+        <div className="d-flex justify-content-center action-cell">
           <button
-            className="btn btn-sm btn-outline-primary me-2"
+            className="btn btn-sm btn-outline-primary icon-btn"
             title="Edit"
             onClick={() => openEditModal(row.id)}
           >
-            <i className="fa fa-edit"></i>
+            <i className="bi bi-pencil"></i>
           </button>
           <button
-            className="btn btn-sm btn-outline-danger"
+            className="btn btn-sm btn-outline-danger icon-btn ms-2"
             title="Delete"
             onClick={() => openDeleteModal(row.id)}
           >
-            <i className="fa fa-trash"></i>
+            <i className="bi bi-trash"></i>
           </button>
         </div>
       ),
@@ -287,14 +285,7 @@ function SubjectsManagement() {
   return (
     <div className={`d-flex min-vh-100 ${darkMode ? "bg-dark text-white" : "bg-light"} overflow-hidden`}>
       <Sidebar collapsed={collapsed} />
-      <div
-        className="d-flex flex-column flex-grow-1"
-        style={{
-          marginLeft: window.innerWidth >= 768 ? sidebarWidth : 0,
-          transition: "margin-left 0.3s",
-          minWidth: 0,
-        }}
-      >
+      <div className={`d-flex flex-column flex-grow-1 main-content ${collapsed ? 'sidebar-collapsed' : ''}`}>
         <Navbar
           user={user}
           darkMode={darkMode}
@@ -313,8 +304,8 @@ function SubjectsManagement() {
       onChange={(e) => setFilterText(e.target.value)}
     />
     {!viewSubjectsModal && (
-      <button className="btn btn-success ms-3" onClick={openAddModal}>
-        <i className="fa fa-plus me-1"></i> Add Subject
+        <button className="btn btn-success ms-3" onClick={openAddModal}>
+        <i className="bi bi-plus me-1"></i> Add Subject
       </button>
     )}
   </div>
@@ -347,7 +338,7 @@ function SubjectsManagement() {
             : ""}
         </h5>
         <button className="btn btn-secondary" onClick={closeViewSubjectsModal}>
-          <i className="fa fa-arrow-left me-1"></i> Back
+          <i className="bi bi-arrow-left me-1"></i> Back
         </button>
       </div>
 

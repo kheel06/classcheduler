@@ -31,7 +31,6 @@ const Navbar = ({ user, darkMode, toggleDarkMode, toggleSidebar, handleLogout, o
   return (
     <nav
       className={`navbar navbar-expand-lg ${darkMode ? "navbar-dark bg-dark" : "navbar-light bg-light"} border-bottom`}
-      style={{ zIndex: 1050 }}
     >
       <div className="container-fluid">
         <button className="btn btn-outline-secondary me-3 d-none d-md-inline" onClick={toggleSidebar}>

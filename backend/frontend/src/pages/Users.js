@@ -329,20 +329,20 @@ const handleEditUser = async (e) => {
     {
       name: "Actions",
       cell: (row) => (
-        <div className="d-flex justify-content-center">
+        <div className="d-flex justify-content-center action-cell">
           <button
-            className="btn btn-sm btn-outline-primary me-2"
+            className="btn btn-sm btn-outline-primary icon-btn"
             title="Edit"
             onClick={() => openEditModal(row.id)}
           >
-            <i className="fa fa-edit"></i>
+            <i className="bi bi-pencil"></i>
           </button>
           <button
-            className="btn btn-sm btn-outline-danger"
+            className="btn btn-sm btn-outline-danger icon-btn ms-2"
             title="Delete"
             onClick={() => openDeleteModal(row.id)}
           >
-            <i className="fa fa-trash"></i>
+            <i className="bi bi-trash"></i>
           </button>
         </div>
       ),
@@ -362,14 +362,7 @@ const handleEditUser = async (e) => {
       } overflow-hidden`}
     >
       <Sidebar collapsed={collapsed} />
-      <div
-        className="d-flex flex-column flex-grow-1"
-        style={{
-          marginLeft: window.innerWidth >= 768 ? sidebarWidth : 0,
-          transition: "margin-left 0.3s",
-          minWidth: 0,
-        }}
-      >
+      <div className={`d-flex flex-column flex-grow-1 main-content ${collapsed ? 'sidebar-collapsed' : ''}`}>
         <Navbar
           user={user}
           darkMode={darkMode}
@@ -388,7 +381,7 @@ const handleEditUser = async (e) => {
               onChange={(e) => setFilterText(e.target.value)}
             />
             <button className="btn btn-success ms-3" onClick={openAddModal}>
-              <i className="fa fa-plus me-1"></i> Add User
+              <i className="bi bi-plus me-1"></i> Add User
             </button>
           </div>
           <DataTable

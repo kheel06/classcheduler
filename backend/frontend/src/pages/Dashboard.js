@@ -93,17 +93,9 @@ function Dashboard() {
     ? stats.filter(stat => stat.label.toLowerCase().includes("schedule"))
     : stats;
   return (
-    <div className={`d-flex min-vh-100 ${darkMode ? "bg-dark text-white" : "bg-light"} overflow-hidden`}>
+    <div className="app-layout">
       <Sidebar collapsed={collapsed} />
-
-      <div
-        className="d-flex flex-column flex-grow-1"
-        style={{
-          marginLeft: window.innerWidth >= 768 ? sidebarWidth : 0,
-          transition: "margin-left 0.3s",
-          minWidth: 0,
-        }}
-      >
+      <div className="main-content">
         <Navbar
           user={user}
           time={time}
@@ -112,7 +104,6 @@ function Dashboard() {
           toggleSidebar={toggleSidebar}
           openMobileSidebar={openMobileSidebar}
         />
-
         <div className="flex-grow-1 p-4 d-flex flex-column">
           <h2 className="mb-4 fw-bold text-primary" style={{ letterSpacing: "1px" }}>
             Dashboard Statistics

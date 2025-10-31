@@ -1,4 +1,6 @@
 @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
+/* Ensure Poppins is available even if the HTML <link> isn't present (safe fallback) */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   /* Ensure Bootstrap uses Poppins everywhere */
@@ -12,7 +14,8 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --sidebar-width: 280px;
+  --sidebar-width: 250px; /* default width used by pages */
+  --sidebar-width-collapsed: 80px;
   --sidebar-bg-start: #0f1a64;
   --sidebar-bg-end: #243bce;
   --sidebar-accent: #6f7dff;
@@ -83,6 +86,27 @@ button, .btn, .form-control,
 
 .btn {
   border-radius: 999px !important;
+}
+
+/* Icon-only circular buttons used in table action columns */
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0.25rem; /* small hit area */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% !important;
+  line-height: 1;
+  font-size: 0.95rem;
+}
+.icon-btn i, .icon-btn svg {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.action-cell > .icon-btn + .icon-btn,
+.action-cell .icon-btn + .icon-btn {
+  margin-left: 0.5rem;
 }
 
 .content-card {
@@ -228,6 +252,81 @@ button, .btn, .form-control,
   background-color: var(--background-light);
 }
 
+/* Font loading helper classes
+   - By default the project prefers Poppins (loaded via Google Fonts in public/index.html).
+   - If the webfont fails to load within a short timeout, JS will add `.fonts-failed` to the
+     root element and this rule will force a system sans fallback. The rule is added at the
+     end of the file to override earlier `!important` declarations when necessary.
+*/
+html.fonts-failed,
+body.fonts-failed,
+#root.fonts-failed {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+html.fonts-loaded,
+body.fonts-loaded,
+#root.fonts-loaded {
+  /* Re-assert Poppins when the browser confirms the webfont is available */
+  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+/* Make headings bolder and tighter to match the provided design mockup */
+h1, h2, h3 {
+  font-weight: 800; /* Use heavy Poppins weights for the strong headings */
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+/* Specific styling for login page heading */
+.text-center h2 {
+  font-size: 1.75rem; /* slightly larger than default */
+  margin-top: 0.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Force Poppins and consistent heavy weights for login and hero headings to avoid
+   browser fallback/substitution differences between elements. This targets the
+   login heading and the right-side hero display on the login page. */
+.login-heading,
+.hero-heading {
+  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  font-weight: 800 !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.hero-heading {
+  font-size: 3.5rem !important;
+  line-height: 1.02 !important;
+}
+
+/* Hero subheading (e.g., "Class Scheduling System") should use the same Poppins
+   family and a medium weight so it visually matches the heavy display heading. */
+.hero-subheading {
+  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  /* Match accreditation: use medium (500) for the subheading to visually pair with the heavy display */
+  font-weight: 500 !important;
+  font-size: 0.95rem !important;
+  margin-top: 0.75rem;
+  opacity: 0.95;
+}
+
+/* Force Poppins globally across the app. This overrides other libraries
+   and ensures a consistent typographic system. Keep monospace for code/pre.
+   NOTE: Using `!important` globally may affect third-party components; review
+   if you see unexpected typographic changes in widgets. */
+html, body, #root, *, *::before, *::after {
+  font-family: var(--bs-font-sans-serif) !important;
+}
+
+/* Preserve monospace for code blocks and inline code */
+code, pre, kbd, samp, .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace !important;
+}
+
+
 .sidebar {
   width: var(--sidebar-width);
   background: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
@@ -238,8 +337,8 @@ button, .btn, .form-control,
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 1.5rem 1.25rem;
-  transition: transform 0.3s ease-in-out;
+  padding: 2rem 1.25rem 2rem 1.25rem; /* slightly more top padding so avatar doesn't overlap header */
+  transition: width 0.25s ease-in-out, padding 0.25s ease-in-out;
   z-index: 1050;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -247,7 +346,9 @@ button, .btn, .form-control,
 }
 
 .sidebar.collapsed {
-  transform: translateX(-100%);
+  width: var(--sidebar-width-collapsed);
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
 }
 
 .sidebar.visible {
@@ -380,6 +481,11 @@ button, .btn, .form-control,
   transition: margin-left 0.3s ease-in-out;
 }
 
+/* Ensure the top navbar aligns with the main content area and sits to the
+   right of the sidebar. This prevents the hamburger from visually overlapping
+   the sidebar on desktop. The navbar will respond to changes in --sidebar-width. */
+/* Navbar alignment handled by page layout (inline styles) to avoid double-offset issues. */
+
 .main-content.sidebar-collapsed {
   margin-left: 0;
   width: 100%;
@@ -400,6 +506,19 @@ button, .btn, .form-control,
   justify-content: space-between;
   padding: 1rem 1.25rem 1.25rem;
   gap: 1.5rem;
+}
+
+/* Ensure navbar sits below the sidebar in stacking order so sidebar avatar
+   does not get visually cut off by the navbar background. */
+.navbar {
+  z-index: 1030;
+}
+
+/* Slightly reduce left padding inside the navbar so the hamburger sits closer to
+   the left edge of the main content column. */
+.navbar .container-fluid {
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
 }
 
 .header-left,
