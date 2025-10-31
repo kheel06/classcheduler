@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DatabaseController extends Controller
 {
@@ -107,6 +109,26 @@ class DatabaseController extends Controller
                 $data['file_path'] = $path;
             }
 
+            // Handle base64-encoded profile images sent inline (avoid storing huge
+            // base64 blobs directly in the DB). If frontend sends `profile` as a
+            // data URL (data:image/...), decode and store as a file and save the
+            // storage path instead.
+            if (isset($data['profile']) && is_string($data['profile']) && Str::startsWith($data['profile'], 'data:')) {
+                try {
+                    [$meta, $b64] = explode(',', $data['profile'], 2);
+                    preg_match('/data:(image\/[^;]+);base64/', $meta, $m);
+                    $ext = $m[1] ?? 'png';
+                    $ext = str_replace('image/', '', $ext);
+                    $binary = base64_decode($b64);
+                    $filename = 'profiles/' . uniqid('prof_') . '.' . $ext;
+                    Storage::disk('public')->put($filename, $binary);
+                    $data['profile'] = $filename;
+                } catch (\Throwable $e) {
+                    // If decoding fails, remove profile to avoid DB errors
+                    unset($data['profile']);
+                }
+            }
+
             $id = DB::table($table)->insertGetId($data);
 
             $this->logAction('insert', $table, $id, "Inserted new record into {$table}", $userId);
@@ -153,6 +175,26 @@ class DatabaseController extends Controller
                 $file = $request->file('file');
                 $path = $file->store('uploads', 'public');
                 $data['file_path'] = $path;
+            }
+
+            // If frontend sent a base64 data URL for the `profile` field,
+            // decode & store it on disk and save the file path instead of the
+            // raw base64 string (which can be too large for varchar columns).
+            if (isset($data['profile']) && is_string($data['profile']) && Str::startsWith($data['profile'], 'data:')) {
+                try {
+                    [$meta, $b64] = explode(',', $data['profile'], 2);
+                    preg_match('/data:(image\/[^;]+);base64/', $meta, $m);
+                    $ext = $m[1] ?? 'png';
+                    $ext = str_replace('image/', '', $ext);
+                    $binary = base64_decode($b64);
+                    $filename = 'profiles/' . uniqid('prof_') . '.' . $ext;
+                    Storage::disk('public')->put($filename, $binary);
+                    $data['profile'] = $filename;
+                } catch (\Throwable $e) {
+                    // If decoding fails, remove profile so the update won't try to
+                    // write a too-long string into the DB column.
+                    unset($data['profile']);
+                }
             }
 
             if (isset($data['email']) && isset($conditions['id'])) {
