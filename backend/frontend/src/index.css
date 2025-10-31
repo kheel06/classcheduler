@@ -472,6 +472,10 @@ code, pre, kbd, samp, .mono {
   z-index: 1040;
 }
 
+/* NOTE: layout offset is handled by `.main-content` (and page-specific inline
+  styles like the Calendar). Avoid global `.app-layout` padding to prevent
+  double-offsets when `.main-content` or inline styles are also present. */
+
 .main-content {
   margin-left: var(--sidebar-width);
   flex: 1;
@@ -998,6 +1002,10 @@ select.form-control:focus {
   }
 }
 
+/* Pages should rely on `.main-content` (or inline page styles) to apply the
+   correct left offset. The Calendar component already uses an inline
+   `marginLeft` calculated from the page state; other pages use `.main-content`. */
+
 /* Responsive enhancements */
 @media (max-width: 1199.98px) {
   .main-content {
@@ -1017,6 +1025,7 @@ select.form-control:focus {
     width: 100%;
     padding: 1.25rem;
   }
+  /* no global .app-layout override here to avoid double offsets */
   .top-header {
     border-radius: var(--radius-xl);
     padding: 0.75rem 1rem 1rem;

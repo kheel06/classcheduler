@@ -4,8 +4,13 @@
   min-height: 100vh;
   width: var(--sidebar-width, 280px);
   transition: width 0.2s;
-  position: relative;
-  z-index: 10;
+  /* Keep the sidebar fixed to the left so main content can flow beside it */
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  z-index: 1050;
+  overflow-y: auto;
 }
 
 .sidebar.collapsed {

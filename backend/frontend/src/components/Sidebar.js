@@ -3,7 +3,8 @@ import { useEffect } from "react";
 import "./Sidebar.css";
 
 const Sidebar = ({ collapsed }) => {
-  const sidebarWidth = collapsed ? 80 : 280;
+  // Keep sidebar width consistent with page layout defaults (250px when expanded)
+  const sidebarWidth = collapsed ? 80 : 250;
   const location = useLocation();
   const { pathname } = location;
   const navigate = useNavigate();
