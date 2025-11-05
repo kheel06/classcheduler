@@ -51,7 +51,12 @@ function Login() {
         const result = await response.json();
         if (result.data && result.data.length > 0) {
           Object.entries(result.data[0]).forEach(([key, value]) => {
-            sessionStorage.setItem(key, value);
+            // don't store null/undefined as the literal string "null"; normalize to empty string for missing values
+            if (value === null || value === undefined) {
+              sessionStorage.setItem(key, '');
+            } else {
+              sessionStorage.setItem(key, value);
+            }
           });
           sessionStorage.setItem("failedAttempts", "0");
           sessionStorage.removeItem("lockoutUntil");

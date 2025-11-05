@@ -32,6 +32,62 @@ function UsersManagement() {
     profile: null,
   });
 
+  // Preview URL for Add Modal image preview
+  const [addPreview, setAddPreview] = useState(null);
+  // Preview URL for Edit Modal
+  const [editPreview, setEditPreview] = useState(null);
+  const [editPreviewObject, setEditPreviewObject] = useState(false);
+
+  // Inline validation state for Add modal
+  const [addErrors, setAddErrors] = useState({});
+  const [isAddValid, setIsAddValid] = useState(false);
+
+  // Helper: resolve profile value to an image src usable in <img>
+  const resolveProfileSrc = (profile) => {
+    if (!profile) return null;
+    // data URL -> use as-is
+    if (typeof profile === 'string' && profile.startsWith('data:')) return profile;
+    // absolute URL (http(s) or protocol-relative)
+    if (typeof profile === 'string' && (profile.startsWith('http') || profile.startsWith('//'))) return profile;
+
+    // Determine backend origin: prefer REACT_APP_API_URL if it's a full URL, otherwise fallback to window.location.origin
+    let origin = window.location.origin;
+    try {
+      if (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.startsWith('http')) {
+        origin = new URL(process.env.REACT_APP_API_URL).origin;
+      }
+    } catch (e) {
+      origin = window.location.origin;
+    }
+
+    const p = (typeof profile === 'string') ? profile.trim() : profile;
+    // If already an absolute storage path returned by Storage::url (e.g. '/storage/uploads/...')
+    if (p.startsWith('/')) return origin + p;
+    // If it starts with 'storage/' (no leading slash)
+    if (p.startsWith('storage/')) return origin + '/' + p;
+    // If it's a storage-relative filename like 'profiles/...' or 'uploads/...', prefix with /storage/
+    return origin + '/storage/' + p.replace(/^\/+/, '');
+  };
+
+  // Image cell component to gracefully degrade when image fails
+  const ProfileImage = ({ profile, name, size = 32 }) => {
+    const [broken, setBroken] = useState(false);
+    useEffect(() => {
+      setBroken(false);
+    }, [profile]);
+    if (!profile) return <span className="text-muted">No Image</span>;
+    if (broken) return <span className="text-muted">No Image</span>;
+    const src = resolveProfileSrc(profile);
+    return (
+      <img
+        src={src}
+        alt={name || 'profile'}
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }}
+        onError={() => setBroken(true)}
+      />
+    );
+  };
+
   // Fetch users
   useEffect(() => {
     const fetchUsers = async () => {
@@ -53,75 +109,105 @@ function UsersManagement() {
   }, []);
 
  // ✅ Add User
-const handleAddUser = async (e) => {
-  e.preventDefault();
-  try {
-    let profileUrl = "";
+ const validateAddForm = () => {
+   const errors = {};
+   if (!formData.first_name || formData.first_name.trim() === '') errors.first_name = 'First name is required.';
+   if (!formData.last_name || formData.last_name.trim() === '') errors.last_name = 'Last name is required.';
+   if (!formData.email || formData.email.trim() === '') errors.email = 'Email is required.';
+   else {
+     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+     if (!emailRegex.test(formData.email)) errors.email = 'Please enter a valid email address.';
+     else if (users.some((u) => u.email && u.email.toLowerCase() === formData.email.toLowerCase())) errors.email = 'A user with this email already exists.';
+   }
+   if (!formData.role || formData.role.trim() === '') errors.role = 'Role is required.';
+   if (!formData.password || formData.password.trim() === '') errors.password = 'Password is required.';
+   else {
+     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/;
+     if (!strongPasswordRegex.test(formData.password)) errors.password = 'Password must be at least 8 characters and include uppercase, lowercase, number, and special symbol.';
+   }
+   if (formData.profile && typeof formData.profile !== 'string') {
+     const file = formData.profile;
+     if (!file.type.startsWith('image/')) errors.profile = 'Profile must be an image file.';
+     const maxSize = 2 * 1024 * 1024;
+     if (file.size > maxSize) errors.profile = 'Profile image must be less than 2MB.';
+   }
+   return errors;
+ };
 
-    // ✅ Validate password
-    if (!formData.password || formData.password.trim() === "") {
-      Swal.fire("Error", "Password is required for new users.", "error");
-      return;
-    }
+ useEffect(() => {
+   const errs = validateAddForm();
+   setAddErrors(errs);
+   setIsAddValid(Object.keys(errs).length === 0);
+ }, [formData, users]);
 
-    const strongPasswordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/;
+ const handleAddUser = async (e) => {
+   e.preventDefault();
+   const errs = validateAddForm();
+   setAddErrors(errs);
+   if (Object.keys(errs).length > 0) return; // inline validation will show messages
 
-    if (!strongPasswordRegex.test(formData.password)) {
-      Swal.fire(
-        "Error",
-        "Password must be at least 8 characters and include uppercase, lowercase, number, and special symbol.",
-        "error"
-      );
-      return;
-    }
-
-    // ✅ Upload profile if present
-    if (formData.profile) {
-      const fd = new FormData();
-      fd.append("file", formData.profile);
-      const uploadRes = await fetch(process.env.REACT_APP_API_URL + "upload", {
-        method: "POST",
-        body: fd,
-      });
+   try {
+     let profileUrl = '';
+     if (formData.profile) {
+       const fd = new FormData();
+       fd.append('file', formData.profile);
+       const uploadRes = await fetch(process.env.REACT_APP_API_URL + 'upload', {
+         method: 'POST',
+         body: fd,
+       });
       const uploadData = await uploadRes.json();
-      if (uploadData.success && uploadData.paths && uploadData.paths.file) {
-        profileUrl = uploadData.paths.file;
+      console.log('Users.js: upload response (add)', uploadData);
+      if (uploadData && uploadData.success && uploadData.paths) {
+        const paths = uploadData.paths;
+        if (Array.isArray(paths) && paths.length > 0) {
+          profileUrl = paths[0];
+        } else if (paths.file) {
+          profileUrl = Array.isArray(paths.file) ? paths.file[0] : paths.file;
+        } else {
+          const keys = Object.keys(paths);
+          if (keys.length > 0) {
+            const val = paths[keys[0]];
+            profileUrl = Array.isArray(val) ? val[0] : val;
+          }
+        }
+        if (!profileUrl) console.warn('Users.js: could not derive uploaded file path (add)', uploadData);
+      } else {
+        console.warn('Users.js: upload did not return expected paths structure (add)', uploadData);
       }
-    }
+     }
 
-    // ✅ Insert user
-    const response = await fetch(process.env.REACT_APP_API_URL + "insert", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        table: "users",
-        data: {
-          ...formData,
-          profile: profileUrl,
-        },
-      }),
-    });
+     // Insert user
+     const response = await fetch(process.env.REACT_APP_API_URL + 'insert', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({
+         table: 'users',
+         data: {
+           ...formData,
+           profile: profileUrl,
+         },
+       }),
+     });
 
-    const result = await response.json();
-    if (result.success) {
-      Swal.fire("Success", "User added successfully!", "success");
-      // Refetch users
-      const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table: "users" }),
-      });
-      const data = await res.json();
-      setUsers(data.data || []);
-      closeAddModal();
-    } else {
-      Swal.fire("Error", result.message || "Failed to add user.", "error");
-    }
-  } catch (error) {
-    Swal.fire("Error", "Failed to add user.", "error");
-  }
-};
+     const result = await response.json();
+     if (result.success) {
+       Swal.fire('Success', 'User added successfully!', 'success');
+       // Refetch users
+       const res = await fetch(process.env.REACT_APP_API_URL + 'select', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ table: 'users' }),
+       });
+       const data = await res.json();
+       setUsers(data.data || []);
+       closeAddModal();
+     } else {
+       Swal.fire('Error', result.message || 'Failed to add user.', 'error');
+     }
+   } catch (error) {
+     Swal.fire('Error', 'Failed to add user.', 'error');
+   }
+ };
 
 // ✅ Edit User
 const handleEditUser = async (e) => {
@@ -138,8 +224,23 @@ const handleEditUser = async (e) => {
         body: fd,
       });
       const uploadData = await uploadRes.json();
-      if (uploadData.success && uploadData.paths && uploadData.paths.file) {
-        profileUrl = uploadData.paths.file;
+      console.log('Users.js: upload response (edit)', uploadData);
+      if (uploadData && uploadData.success && uploadData.paths) {
+        const paths = uploadData.paths;
+        if (Array.isArray(paths) && paths.length > 0) {
+          profileUrl = paths[0];
+        } else if (paths.file) {
+          profileUrl = Array.isArray(paths.file) ? paths.file[0] : paths.file;
+        } else {
+          const keys = Object.keys(paths);
+          if (keys.length > 0) {
+            const val = paths[keys[0]];
+            profileUrl = Array.isArray(val) ? val[0] : val;
+          }
+        }
+        if (!profileUrl) console.warn('Users.js: could not derive uploaded file path (edit)', uploadData);
+      } else {
+        console.warn('Users.js: upload did not return expected paths structure (edit)', uploadData);
       }
     }
 
@@ -181,6 +282,8 @@ const handleEditUser = async (e) => {
     });
 
     const result = await response.json();
+    console.log('Users.js: update response', result);
+    // Treat explicit success
     if (result.success) {
       Swal.fire("Success", "User updated successfully!", "success");
       // Refetch users
@@ -190,7 +293,52 @@ const handleEditUser = async (e) => {
         body: JSON.stringify({ table: "users" }),
       });
       const data = await res.json();
+      console.log('Users.js: refreshed users after update', data);
       setUsers(data.data || []);
+      // If the edited user is the currently logged-in user, update sessionStorage
+      try {
+        const currentEmail = sessionStorage.getItem('email');
+        if (currentEmail) {
+          const updated = (data.data || []).find(u => u.id === editUserId || (u.email && u.email === updateData.email));
+          if (updated && updated.email === currentEmail) {
+            // update relevant sessionStorage keys so account/profile views refresh
+            sessionStorage.setItem('first_name', updated.first_name || '');
+            sessionStorage.setItem('last_name', updated.last_name || '');
+            sessionStorage.setItem('email', updated.email || '');
+            sessionStorage.setItem('profile', updated.profile || '');
+            console.log('Users.js: updated sessionStorage for current user', updated.profile);
+          }
+        }
+      } catch (e) {
+        console.warn('Users.js: failed to update sessionStorage after edit', e);
+      }
+      closeEditModal();
+    } else if (result.message && typeof result.message === 'string' && result.message.toLowerCase().includes('no records updated')) {
+      // Backend reported zero rows affected. This is not fatal — it usually
+      // means the submitted data matched existing values. Treat as a soft
+      // success so the UI doesn't show an error when nothing changed.
+      Swal.fire("Notice", "No changes were made.", "info");
+      // Still refresh list to ensure UI is up-to-date
+      const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table: "users" }),
+      });
+      const data = await res.json();
+      console.log('Users.js: refreshed users after no-op update', data);
+      setUsers(data.data || []);
+      try {
+        const currentEmail = sessionStorage.getItem('email');
+        if (currentEmail) {
+          const updated = (data.data || []).find(u => u.id === editUserId || (u.email && u.email === updateData.email));
+          if (updated && updated.email === currentEmail) {
+            sessionStorage.setItem('first_name', updated.first_name || '');
+            sessionStorage.setItem('last_name', updated.last_name || '');
+            sessionStorage.setItem('email', updated.email || '');
+            sessionStorage.setItem('profile', updated.profile || '');
+          }
+        }
+      } catch (e) { /* ignore */ }
       closeEditModal();
     } else {
       Swal.fire("Error", result.message || "Failed to update user.", "error");
@@ -236,10 +384,21 @@ const handleEditUser = async (e) => {
   // Modal open/close
   const openAddModal = () => {
     setFormData({ first_name: "", last_name: "", email: "", role: "", password: "", profile: null });
+    // reset preview
+    if (addPreview) {
+      URL.revokeObjectURL(addPreview);
+    }
+    setAddPreview(null);
+    setAddErrors({});
     setShowAddModal(true);
   };
   const openEditModal = (id) => {
     const user = users.find((u) => u.id === id);
+    // cleanup previous preview if it was an object URL
+    if (editPreviewObject && editPreview) {
+      try { URL.revokeObjectURL(editPreview); } catch (err) {}
+    }
+    // set form data
     setFormData({
       first_name: user.first_name || "",
       last_name: user.last_name || "",
@@ -248,6 +407,14 @@ const handleEditUser = async (e) => {
       password: "",
       profile: user.profile || null,
     });
+    // set edit preview - if profile is a string, resolve to URL (external), else null
+    if (user.profile && typeof user.profile === 'string') {
+      setEditPreview(resolveProfileSrc(user.profile));
+      setEditPreviewObject(false);
+    } else {
+      setEditPreview(null);
+      setEditPreviewObject(false);
+    }
     setEditUserId(id);
     setShowEditModal(true);
   };
@@ -255,8 +422,29 @@ const handleEditUser = async (e) => {
     setDeleteUserId(id);
     setShowDeleteModal(true);
   };
-  const closeAddModal = () => setShowAddModal(false);
-  const closeEditModal = () => setShowEditModal(false);
+  const closeAddModal = () => {
+    // revoke preview URL if any
+    if (addPreview) {
+      try {
+        URL.revokeObjectURL(addPreview);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    setAddPreview(null);
+    setFormData({ first_name: "", last_name: "", email: "", role: "", password: "", profile: null });
+    setAddErrors({});
+    setIsAddValid(false);
+    setShowAddModal(false);
+  };
+  const closeEditModal = () => {
+    if (editPreviewObject && editPreview) {
+      try { URL.revokeObjectURL(editPreview); } catch (err) {}
+    }
+    setEditPreview(null);
+    setEditPreviewObject(false);
+    setShowEditModal(false);
+  };
   const closeDeleteModal = () => setShowDeleteModal(false);
 
   // Dark mode/sidebar
@@ -289,20 +477,7 @@ const handleEditUser = async (e) => {
     },
     {
       name: "Profile",
-      cell: (row) =>
-        row.profile ? (
-          <img
-            src={
-              process.env.REACT_APP_API_URL +
-              "../" +
-              (row.profile.startsWith("/") ? row.profile.replace(/^\//, "") : row.profile)
-            }
-            alt="profile"
-            style={{ width: 32, height: 32, borderRadius: "50%" }}
-          />
-        ) : (
-          <span className="text-muted">No Image</span>
-        ),
+      cell: (row) => <ProfileImage profile={row.profile} name={`${row.first_name || ''} ${row.last_name || ''}`} size={32} />,
       center: true,
       width: "80px",
     },
@@ -420,6 +595,7 @@ const handleEditUser = async (e) => {
                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                         required
                       />
+                      {addErrors.first_name && <div className="text-danger small mt-1">{addErrors.first_name}</div>}
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Last Name</label>
@@ -430,6 +606,7 @@ const handleEditUser = async (e) => {
                         onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                         required
                       />
+                      {addErrors.last_name && <div className="text-danger small mt-1">{addErrors.last_name}</div>}
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Email</label>
@@ -440,6 +617,7 @@ const handleEditUser = async (e) => {
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
                       />
+                      {addErrors.email && <div className="text-danger small mt-1">{addErrors.email}</div>}
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Role</label>
@@ -454,6 +632,7 @@ const handleEditUser = async (e) => {
                         <option value="Admin">Admin</option>
                         <option value="User">User</option>
                       </select>
+                      {addErrors.role && <div className="text-danger small mt-1">{addErrors.role}</div>}
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Password</label>
@@ -464,6 +643,7 @@ const handleEditUser = async (e) => {
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         required
                       />
+                      {addErrors.password && <div className="text-danger small mt-1">{addErrors.password}</div>}
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Profile Image</label>
@@ -471,15 +651,37 @@ const handleEditUser = async (e) => {
                         type="file"
                         className="form-control"
                         accept="image/*"
-                        onChange={(e) => setFormData({ ...formData, profile: e.target.files[0] })}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            // revoke previous preview
+                            if (addPreview) {
+                              try { URL.revokeObjectURL(addPreview); } catch (err) {}
+                            }
+                            setFormData({ ...formData, profile: file });
+                            setAddPreview(URL.createObjectURL(file));
+                          } else {
+                            if (addPreview) {
+                              try { URL.revokeObjectURL(addPreview); } catch (err) {}
+                            }
+                            setFormData({ ...formData, profile: null });
+                            setAddPreview(null);
+                          }
+                        }}
                       />
+                      {addPreview && (
+                        <div className="mt-2">
+                          <img src={addPreview} alt="preview" style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover" }} />
+                        </div>
+                      )}
+                      {addErrors.profile && <div className="text-danger small mt-1">{addErrors.profile}</div>}
                     </div>
                   </div>
                   <div className="modal-footer">
                     <button type="button" className="btn btn-secondary" onClick={closeAddModal}>
                       Cancel
                     </button>
-                    <button type="submit" className="btn btn-success">
+                    <button type="submit" className="btn btn-success" disabled={!isAddValid}>
                       Add
                     </button>
                   </div>
@@ -562,15 +764,22 @@ const handleEditUser = async (e) => {
                         type="file"
                         className="form-control"
                         accept="image/*"
-                        onChange={(e) => setFormData({ ...formData, profile: e.target.files[0] })}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            // revoke previous preview if it was an object URL
+                            if (editPreviewObject && editPreview) {
+                              try { URL.revokeObjectURL(editPreview); } catch (err) {}
+                            }
+                            setFormData({ ...formData, profile: file });
+                            setEditPreview(URL.createObjectURL(file));
+                            setEditPreviewObject(true);
+                          }
+                        }}
                       />
-                      {formData.profile && typeof formData.profile === "string" && (
+                      {editPreview && (
                         <div className="mt-2">
-                          <img   src={
-                process.env.REACT_APP_API_URL +
-                "../" +
-                (formData.profile.startsWith("/") ? formData.profile.replace(/^\//, "") : formData.profile)
-                  } alt="profile" style={{ width: 64, height: 64, borderRadius: "50%" }} />
+                          <img src={editPreview} alt="preview" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: 'cover' }} />
                         </div>
                       )}
                     </div>

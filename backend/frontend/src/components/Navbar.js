@@ -53,13 +53,23 @@ const Navbar = ({ user, darkMode, toggleDarkMode, toggleSidebar, handleLogout, o
               onClick={() => setDropdownOpen(!dropdownOpen)}
             >
               <img
-                src={
-                  (sessionStorage.getItem("profile") && !sessionStorage.getItem("profile").startsWith("data:"))
-                    ? process.env.REACT_APP_API_URL +
-                      "../" +
-                      (sessionStorage.getItem("profile").startsWith("/") ? sessionStorage.getItem("profile").replace(/^\//, "") : sessionStorage.getItem("profile"))
-                    : sessionStorage.getItem("profile") || "https://via.placeholder.com/40"
-                }
+                src={(function () {
+                  const raw = (sessionStorage.getItem("profile") || "").trim();
+                  if (!raw) return "https://via.placeholder.com/40";
+                  if (raw.startsWith('data:') || raw.startsWith('http') || raw.startsWith('//')) return raw;
+                  // prefer backend origin from REACT_APP_API_URL when available
+                  let apiOrigin = null;
+                  try { const api = process.env.REACT_APP_API_URL; if (api) apiOrigin = new URL(api, window.location.origin).origin; } catch (e) { apiOrigin = null; }
+                  // /storage/ absolute
+                  if (raw.startsWith('/storage/')) return (apiOrigin || window.location.origin) + raw;
+                  if (raw.startsWith('storage/')) return (apiOrigin || window.location.origin) + '/' + raw;
+                  // server-saved filename like 'profiles/abc.png' or 'uploads/xyz.jpg'
+                  if (raw.match(/^[a-z0-9_\-]+\/.+\.(png|jpe?g|gif|webp|svg)$/i)) {
+                    return (apiOrigin || window.location.origin) + '/storage/' + raw.replace(/^\//, '');
+                  }
+                  if (apiOrigin) return apiOrigin + '/' + raw.replace(/^\//, '');
+                  return window.location.origin + '/' + raw.replace(/^\//, '');
+                })()}
                 alt="profile"
                 className="rounded-circle"
                 width="40"

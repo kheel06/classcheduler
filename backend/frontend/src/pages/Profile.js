@@ -27,6 +27,24 @@ import Swal from "sweetalert2";
 
   const [profile, setProfile] = useState(getProfileFromSession());
 
+  // helper to resolve profile path to usable src (same logic used in Sidebar/Navbar)
+  const resolveProfileSrc = (p) => {
+    if (!p) return null;
+    if (typeof p !== 'string') return null;
+    const val = p.trim();
+    // prefer backend origin
+    let apiOrigin = null;
+    try { const api = process.env.REACT_APP_API_URL; if (api) apiOrigin = new URL(api, window.location.origin).origin; } catch (e) { apiOrigin = null; }
+    if (val.startsWith('data:')) return val;
+    if (val.startsWith('http') || val.startsWith('//')) return val;
+    if (val.startsWith('/storage/')) return (apiOrigin || window.location.origin) + val;
+    if (val.startsWith('storage/')) return (apiOrigin || window.location.origin) + '/' + val;
+    if (val.match(/^[a-z0-9_\-]+\/.+\.(png|jpe?g|gif|webp|svg)$/i)) return (apiOrigin || window.location.origin) + '/storage/' + val.replace(/^\//, '');
+    if (val.startsWith('/')) return (apiOrigin || window.location.origin) + val;
+    if (apiOrigin) return apiOrigin + '/' + val.replace(/^\//, '');
+    return window.location.origin + '/' + val.replace(/^\//, '');
+  };
+
   useEffect(() => {
     setProfile(getProfileFromSession());
   }, []);
@@ -121,7 +139,16 @@ const handleSubmit = async (e) => {
 
     const result = await response.json();
     if (result.success) {
-      sessionStorage.setItem("profile", profileImage || "");
+      // Update sessionStorage so the UI shows updated values after refresh
+      if (updatedProfile.firstName !== undefined) sessionStorage.setItem("first_name", updatedProfile.firstName);
+      if (updatedProfile.middleName !== undefined) sessionStorage.setItem("middle_name", updatedProfile.middleName);
+      if (updatedProfile.lastName !== undefined) sessionStorage.setItem("last_name", updatedProfile.lastName);
+      if (updatedProfile.email !== undefined) sessionStorage.setItem("email", updatedProfile.email);
+      if (profileImage !== undefined) sessionStorage.setItem("profile", profileImage || "");
+
+      // Update local state so the changes reflect immediately
+      setProfile((p) => ({ ...p, firstName: updatedProfile.firstName, middleName: updatedProfile.middleName, lastName: updatedProfile.lastName, email: updatedProfile.email, profile: profileImage }));
+
       Swal.fire("Success", "Profile updated!", "success");
     } else {
       Swal.fire("Error", result.message || "Failed to update profile.", "error");
@@ -159,15 +186,13 @@ const handleSubmit = async (e) => {
             <div className="mb-3 d-flex justify-content-center">
               <img
                 src={
-                  profile.profile && !profile.profile.startsWith("data:")
-                    ? process.env.REACT_APP_API_URL +
-                      "../" +
-                      (profile.profile.startsWith("/") ? profile.profile.replace(/^\//, "") : profile.profile)
-                    : profile.profile || "https://via.placeholder.com/120"
+                  (profile.profile && !profile.profile.startsWith('data:'))
+                    ? (resolveProfileSrc(profile.profile) || 'https://via.placeholder.com/120')
+                    : (profile.profile || 'https://via.placeholder.com/120')
                 }
                 alt="Profile"
                 className="rounded-circle mb-2"
-                style={{ width: 120, height: 120, objectFit: "cover" }}
+                style={{ width: 120, height: 120, objectFit: 'cover' }}
               />
             </div>
             <div className="mb-3">

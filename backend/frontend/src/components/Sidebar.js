@@ -36,6 +36,45 @@ const Sidebar = ({ collapsed }) => {
   const email = sessionStorage.getItem("email") || "admin@example.com";
   const role = (sessionStorage.getItem("role") || sessionStorage.getItem("user_type") || "ADMIN").toString().toUpperCase();
 
+  // Build profile image src: allow either data URL or stored path. Keep the
+  // Build profile image src: allow data URLs, absolute URLs, or backend storage paths.
+  const rawProfile = sessionStorage.getItem("profile") || "";
+
+  const resolveProfileSrc = (profile) => {
+    if (!profile) return null;
+    if (typeof profile !== 'string') return null;
+    const p = profile.trim();
+    // prefer backend origin from REACT_APP_API_URL when available
+    let apiOrigin = null;
+    try {
+      const api = process.env.REACT_APP_API_URL;
+      if (api) apiOrigin = new URL(api, window.location.origin).origin;
+    } catch (e) { apiOrigin = null; }
+    // data URL
+    if (p.startsWith('data:')) return p;
+    // absolute URL
+    if (p.startsWith('http') || p.startsWith('//')) return p;
+    // /storage/... absolute path returned by Storage::url
+  if (p.startsWith('/storage/')) return (apiOrigin || window.location.origin) + p;
+  // storage/... (missing leading slash)
+  if (p.startsWith('storage/')) return (apiOrigin || window.location.origin) + '/' + p;
+    // common storage relative filenames produced by server (e.g. 'profiles/abc.png' or 'uploads/xyz.jpg')
+    if (p.match(/^[a-z0-9_\-]+\/.+\.(png|jpe?g|gif|webp|svg)$/i)) {
+  return (apiOrigin || window.location.origin) + '/storage/' + p.replace(/^\//, '');
+    }
+    // leading slash fallback
+  if (p.startsWith('/')) return (apiOrigin || window.location.origin) + p;
+    // fallback: try to derive origin from REACT_APP_API_URL then append
+    try {
+        if (apiOrigin) return apiOrigin + '/' + p.replace(/^\//, '');
+    } catch (e) {
+      // ignore
+    }
+    return window.location.origin + '/' + p.replace(/^\//, '');
+  };
+
+  const profileSrc = resolveProfileSrc(rawProfile);
+
   // Minimal nav items — layout/UI only. Keep links that belong to this app.
   const navGroups = [
     {
@@ -98,7 +137,13 @@ const Sidebar = ({ collapsed }) => {
   return (
     <div className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sidebar-profile">
-        <div className="sidebar-avatar">{getInitials(displayName)}</div>
+        <div className="sidebar-avatar">
+          {profileSrc ? (
+            <img src={profileSrc} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+          ) : (
+            getInitials(displayName)
+          )}
+        </div>
         {!collapsed && (
           <>
             <div className="sidebar-name">{displayName}</div>

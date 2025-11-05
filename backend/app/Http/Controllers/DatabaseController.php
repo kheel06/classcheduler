@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
 
 class DatabaseController extends Controller
 {
@@ -91,6 +92,27 @@ class DatabaseController extends Controller
         $userId = $request->input('user_id_session');
 
         try {
+            // Server-side validation for users table
+            if ($table === 'users') {
+                $validator = Validator::make($data, [
+                    'first_name' => 'required|string|max:100',
+                    'last_name' => 'required|string|max:100',
+                    'email' => 'required|email|max:191|unique:users,email',
+                    'password' => ['required', 'string', 'min:8', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-]).+$/'],
+                    'role' => 'required|string|max:50',
+                ], [
+                    'password.regex' => 'Password must include uppercase, lowercase, number and special character.',
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => $validator->errors(),
+                    ], 422);
+                }
+            }
+
             // 🔒 Hash password if present
             if (isset($data['password'])) {
                 $data['password'] = md5($data['password']);
@@ -102,9 +124,24 @@ class DatabaseController extends Controller
                 unset($data['id']);
             }
 
-            // Handle file uploads
+            // Handle file uploads (validate image type and size)
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
+                $mime = $file->getMimeType() ?? '';
+                $size = $file->getSize() ?? 0;
+                // only allow images up to 2MB
+                if (!Str::startsWith($mime, 'image/')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Uploaded file must be an image',
+                    ], 422);
+                }
+                if ($size > 2 * 1024 * 1024) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Uploaded image must be smaller than 2MB',
+                    ], 422);
+                }
                 $path = $file->store('uploads', 'public');
                 $data['file_path'] = $path;
             }
@@ -122,10 +159,51 @@ class DatabaseController extends Controller
                     $binary = base64_decode($b64);
                     $filename = 'profiles/' . uniqid('prof_') . '.' . $ext;
                     Storage::disk('public')->put($filename, $binary);
-                    $data['profile'] = $filename;
+                    // Store the public URL (e.g. '/storage/profiles/...') so frontend
+                    // can use it directly without further normalization.
+                    $data['profile'] = Storage::url($filename);
                 } catch (\Throwable $e) {
                     // If decoding fails, remove profile to avoid DB errors
                     unset($data['profile']);
+                }
+            }
+
+            // Normalize "role" to match DB column constraints (enum or max length)
+            if (isset($data['role'])) {
+                $roleVal = $data['role'];
+                try {
+                    $col = DB::select("SHOW COLUMNS FROM `users` WHERE Field = 'role'");
+                    if (!empty($col) && isset($col[0]->Type)) {
+                        $type = $col[0]->Type; // e.g. "enum('Admin','User')" or "varchar(20)"
+                        // If enum, try to match case-insensitively to one of the allowed values
+                        if (Str::startsWith($type, 'enum(')) {
+                            preg_match_all("/'([^']+)'/", $type, $m);
+                            $enums = $m[1] ?? [];
+                            $matched = null;
+                            foreach ($enums as $ev) {
+                                if (strcasecmp($ev, $roleVal) === 0) {
+                                    $matched = $ev;
+                                    break;
+                                }
+                            }
+                            if ($matched) {
+                                $data['role'] = $matched;
+                            } else {
+                                // fallback to first enum value if nothing matches
+                                $data['role'] = $enums[0] ?? $roleVal;
+                            }
+                        } else {
+                            // If varchar(n) or similar, truncate to max length
+                            if (preg_match('/\((\d+)\)/', $type, $m2)) {
+                                $max = (int) $m2[1];
+                                if (is_string($roleVal) && strlen($roleVal) > $max) {
+                                    $data['role'] = substr($roleVal, 0, $max);
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // ignore and leave role as-is if inspection fails
                 }
             }
 
@@ -189,11 +267,43 @@ class DatabaseController extends Controller
                     $binary = base64_decode($b64);
                     $filename = 'profiles/' . uniqid('prof_') . '.' . $ext;
                     Storage::disk('public')->put($filename, $binary);
-                    $data['profile'] = $filename;
+                    // Store the public URL so frontend receives a consistent
+                    // '/storage/...' value when updating a profile image.
+                    $data['profile'] = Storage::url($filename);
                 } catch (\Throwable $e) {
                     // If decoding fails, remove profile so the update won't try to
                     // write a too-long string into the DB column.
                     unset($data['profile']);
+                }
+            }
+
+            // Normalize "role" value before update to match DB enum / length
+            if (isset($data['role'])) {
+                $roleVal = $data['role'];
+                try {
+                    $col = DB::select("SHOW COLUMNS FROM `users` WHERE Field = 'role'");
+                    if (!empty($col) && isset($col[0]->Type)) {
+                        $type = $col[0]->Type;
+                        if (Str::startsWith($type, 'enum(')) {
+                            preg_match_all("/'([^']+)'/", $type, $m);
+                            $enums = $m[1] ?? [];
+                            $matched = null;
+                            foreach ($enums as $ev) {
+                                if (strcasecmp($ev, $roleVal) === 0) { $matched = $ev; break; }
+                            }
+                            if ($matched) $data['role'] = $matched;
+                            else $data['role'] = $enums[0] ?? $roleVal;
+                        } else {
+                            if (preg_match('/\((\d+)\)/', $type, $m2)) {
+                                $max = (int) $m2[1];
+                                if (is_string($roleVal) && strlen($roleVal) > $max) {
+                                    $data['role'] = substr($roleVal, 0, $max);
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // ignore
                 }
             }
 
