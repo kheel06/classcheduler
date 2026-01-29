@@ -545,8 +545,8 @@ const handleEditUser = async (e) => {
           toggleSidebar={toggleSidebar}
           openMobileSidebar={openMobileSidebar}
         />
-        <div className="flex-grow-1 p-4 d-flex flex-column">
-          <h2>Users Management</h2>
+        <div className="flex-grow-1 p-4">
+          <h4 className="mb-3">Users Management</h4>
           <div className="mb-3 d-flex justify-content-between align-items-center">
             <input
               type="text"

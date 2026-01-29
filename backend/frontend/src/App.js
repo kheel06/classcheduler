@@ -8,10 +8,11 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import UsersManagement from "./pages/Users";
 import Logout from "./pages/Logout";
-import Classes from "./pages/Classes";
+import Program from "./pages/Program";
 import Subjects from "./pages/Subjects";
 import Rooms from "./pages/Rooms";
 import Activity from "./pages/Logs";
+import Reports from "./pages/Reports";
 import Calendar from "./pages/Calendar";
 
 // ProtectedRoute component
@@ -47,6 +48,14 @@ function App() {
           }
         />
         <Route
+          path="reports"
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="profile"
           element={
             <ProtectedRoute>
@@ -63,13 +72,15 @@ function App() {
           }
         />
         <Route
-          path="classes"
+          path="program"
           element={
             <ProtectedRoute>
-              <Classes />
+              <Program />
             </ProtectedRoute>
           }
         />
+        {/* Backwards-compatible redirect */}
+        <Route path="classes" element={<Navigate to="/program" replace />} />
         <Route
           path="subjects"
           element={

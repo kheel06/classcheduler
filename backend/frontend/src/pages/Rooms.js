@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import MobileSidebar from "../components/MobileSidebar";
 import DataTable from "react-data-table-component";
 import Swal from "sweetalert2";
@@ -19,58 +18,54 @@ function RoomsManagement() {
   const [editRoomId, setEditRoomId] = useState(null);
   const [deleteRoomId, setDeleteRoomId] = useState(null);
 
-  // Form: room_number, status
+  // Form: room_name, room_code, campus_building, room_type, capacity, status
   const [formData, setFormData] = useState({
-    room_number: "",
-    status: "0",
+    room_name: "",
+    room_code: "",
+    campus_building: "",
+    room_type: "",
+    capacity: "",
+    status: "Active",
   });
 
   // Fetch rooms
   useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "rooms" }),
-        });
-        const data = await res.json();
-        setRooms(data.data || []);
-      } catch {
-        setRooms([]);
-      }
-    };
     fetchRooms();
   }, []);
+
+  const fetchRooms = async () => {
+    try {
+      const res = await fetch(process.env.REACT_APP_API_URL + "rooms");
+      const data = await res.json();
+      setRooms(Array.isArray(data) ? data : []);
+    } catch {
+      setRooms([]);
+    }
+  };
 
   // Add room
   const handleAddRoom = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "insert", {
+      const response = await fetch(process.env.REACT_APP_API_URL + "rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          table: "rooms",
-          data: {
-            room_number: formData.room_number,
-            status: Number(formData.status),
-          },
+          room_name: formData.room_name,
+          room_code: formData.room_code,
+          campus_building: formData.campus_building,
+          room_type: formData.room_type,
+          capacity: Number(formData.capacity) || 0,
+          status: formData.status,
         }),
       });
-      const result = await response.json();
-      if (result.success) {
+      
+      if (response.ok) {
         Swal.fire("Success", "Room added successfully!", "success");
-        // Refetch rooms
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "rooms" }),
-        });
-        const data = await res.json();
-        setRooms(data.data || []);
+        fetchRooms();
         closeAddModal();
       } else {
+        const result = await response.json();
         Swal.fire("Error", result.message || "Failed to add room.", "error");
       }
     } catch {
@@ -82,31 +77,25 @@ function RoomsManagement() {
   const handleEditRoom = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "update", {
-        method: "POST",
+      const response = await fetch(process.env.REACT_APP_API_URL + "rooms/" + editRoomId, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          table: "rooms",
-          conditions: { id: editRoomId },
-          data: {
-            room_number: formData.room_number,
-            status: Number(formData.status),
-          },
+          room_name: formData.room_name,
+          room_code: formData.room_code,
+          campus_building: formData.campus_building,
+          room_type: formData.room_type,
+          capacity: Number(formData.capacity) || 0,
+          status: formData.status,
         }),
       });
-      const result = await response.json();
-      if (result.success) {
+      
+      if (response.ok) {
         Swal.fire("Success", "Room updated successfully!", "success");
-        // Refetch rooms
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "rooms" }),
-        });
-        const data = await res.json();
-        setRooms(data.data || []);
+        fetchRooms();
         closeEditModal();
       } else {
+        const result = await response.json();
         Swal.fire("Error", result.message || "Failed to update room.", "error");
       }
     } catch {
@@ -117,27 +106,16 @@ function RoomsManagement() {
   // Delete room
   const handleDeleteRoom = async () => {
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          table: "rooms",
-          conditions: { id: deleteRoomId },
-        }),
+      const response = await fetch(process.env.REACT_APP_API_URL + "rooms/" + deleteRoomId, {
+        method: "DELETE",
       });
-      const result = await response.json();
-      if (result.success) {
+      
+      if (response.ok) {
         Swal.fire("Deleted!", "Room deleted successfully.", "success");
-        // Refetch rooms
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "rooms" }),
-        });
-        const data = await res.json();
-        setRooms(data.data || []);
+        fetchRooms();
         closeDeleteModal();
       } else {
+        const result = await response.json();
         Swal.fire("Error", result.message || "Failed to delete room.", "error");
       }
     } catch {
@@ -147,14 +125,25 @@ function RoomsManagement() {
 
   // Modal open/close
   const openAddModal = () => {
-    setFormData({ room_number: "", status: "0" });
+    setFormData({ 
+      room_name: "", 
+      room_code: "", 
+      campus_building: "", 
+      room_type: "", 
+      capacity: "", 
+      status: "Active" 
+    });
     setShowAddModal(true);
   };
   const openEditModal = (id) => {
     const room = rooms.find((r) => r.id === id);
     setFormData({
-      room_number: room.room_number || "",
-      status: String(room.status ?? "0"),
+      room_name: room.room_name || "",
+      room_code: room.room_code || "",
+      campus_building: room.campus_building || "",
+      room_type: room.room_type || "",
+      capacity: String(room.capacity ?? ""),
+      status: room.status || "Active",
     });
     setEditRoomId(id);
     setShowEditModal(true);
@@ -181,7 +170,11 @@ function RoomsManagement() {
   // Filtered data
   const filteredData = rooms.filter(
     (item) =>
-      (item.room_number && item.room_number.toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.room_name && item.room_name.toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.room_code && item.room_code.toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.campus_building && item.campus_building.toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.room_type && item.room_type.toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.capacity !== undefined && String(item.capacity).includes(filterText)) ||
       (item.status !== undefined && String(item.status).includes(filterText))
   );
   const columns = [
@@ -192,14 +185,42 @@ function RoomsManagement() {
       width: "70px",
     },
     {
-      name: "Room Number",
-      selector: (row) => row.room_number,
+      name: "Room Name",
+      selector: (row) => row.room_name || "-",
+      sortable: true,
+    },
+    {
+      name: "Room Code",
+      selector: (row) => row.room_code || "-",
+      sortable: true,
+    },
+    {
+      name: "Campus Building",
+      selector: (row) => row.campus_building || "-",
+      sortable: true,
+    },
+    {
+      name: "Room Type",
+      selector: (row) => row.room_type || "-",
+      sortable: true,
+    },
+    {
+      name: "Capacity",
+      selector: (row) => row.capacity || "-",
       sortable: true,
     },
     {
       name: "Status",
-      selector: (row) => row.status === 0 ? "Active" : "Inactive",
+      selector: (row) => row.status || "Active",
       sortable: true,
+      cell: (row) => {
+        let badgeClass = "bg-secondary";
+        if (row.status === "Active") badgeClass = "bg-success";
+        else if (row.status === "Inactive") badgeClass = "bg-danger";
+        else if (row.status === "Under Renovation") badgeClass = "bg-warning text-dark";
+        
+        return <span className={`badge ${badgeClass}`}>{row.status}</span>;
+      }
     },
     {
       name: "Actions",
@@ -237,7 +258,10 @@ function RoomsManagement() {
       } overflow-hidden`}
     >
       <Sidebar collapsed={collapsed} />
-      <div className={`d-flex flex-column flex-grow-1 main-content ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      <div
+        className="d-flex flex-column flex-grow-1"
+        style={{ marginLeft: window.innerWidth >= 768 ? sidebarWidth : 0, transition: "margin-left 0.3s", minWidth: 0 }}
+      >
         <Navbar
           user={user}
           darkMode={darkMode}
@@ -245,8 +269,8 @@ function RoomsManagement() {
           toggleSidebar={toggleSidebar}
           openMobileSidebar={openMobileSidebar}
         />
-        <div className="flex-grow-1 p-4 d-flex flex-column">
-          <h2>Rooms Management</h2>
+        <div className="flex-grow-1 p-4">
+          <h4 className="mb-3">Rooms Management</h4>
           <div className="mb-3 d-flex justify-content-between align-items-center">
             <input
               type="text"
@@ -269,7 +293,6 @@ function RoomsManagement() {
             theme={darkMode ? "dark" : "default"}
           />
         </div>
-        <Footer darkMode={darkMode} />
       </div>
       <MobileSidebar open={mobileSidebarOpen} onClose={closeMobileSidebar} />
 
@@ -287,13 +310,54 @@ function RoomsManagement() {
                   </div>
                   <div className="modal-body">
                     <div className="mb-2">
-                      <label className="form-label">Room Number</label>
+                      <label className="form-label">Room Name</label>
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.room_number}
-                        onChange={(e) => setFormData({ ...formData, room_number: e.target.value })}
+                        value={formData.room_name}
+                        onChange={(e) => setFormData({ ...formData, room_name: e.target.value })}
                         required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Room Code</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.room_code}
+                        onChange={(e) => setFormData({ ...formData, room_code: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Campus Building</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.campus_building}
+                        onChange={(e) => setFormData({ ...formData, campus_building: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Room Type</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.room_type}
+                        onChange={(e) => setFormData({ ...formData, room_type: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Capacity</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.capacity}
+                        onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                        required
+                        min="0"
                       />
                     </div>
                     <div className="mb-2">
@@ -304,8 +368,9 @@ function RoomsManagement() {
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                         required
                       >
-                        <option value="0">Active</option>
-                        <option value="1">Inactive</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Under Renovation">Under Renovation</option>
                       </select>
                     </div>
                   </div>
@@ -338,13 +403,54 @@ function RoomsManagement() {
                   </div>
                   <div className="modal-body">
                     <div className="mb-2">
-                      <label className="form-label">Room Number</label>
+                      <label className="form-label">Room Name</label>
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.room_number}
-                        onChange={(e) => setFormData({ ...formData, room_number: e.target.value })}
+                        value={formData.room_name}
+                        onChange={(e) => setFormData({ ...formData, room_name: e.target.value })}
                         required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Room Code</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.room_code}
+                        onChange={(e) => setFormData({ ...formData, room_code: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Campus Building</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.campus_building}
+                        onChange={(e) => setFormData({ ...formData, campus_building: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Room Type</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.room_type}
+                        onChange={(e) => setFormData({ ...formData, room_type: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Capacity</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.capacity}
+                        onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                        required
+                        min="0"
                       />
                     </div>
                     <div className="mb-2">
@@ -355,8 +461,9 @@ function RoomsManagement() {
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                         required
                       >
-                        <option value="0">Active</option>
-                        <option value="1">Inactive</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Under Renovation">Under Renovation</option>
                       </select>
                     </div>
                   </div>

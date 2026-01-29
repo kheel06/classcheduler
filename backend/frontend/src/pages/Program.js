@@ -62,7 +62,7 @@ function ClassesManagement() {
       });
       const result = await response.json();
       if (result.success) {
-        Swal.fire("Success", "Class added successfully!", "success");
+        Swal.fire("Success", "Program added successfully!", "success");
         // Refetch classes
         const res = await fetch(process.env.REACT_APP_API_URL + "select", {
           method: "POST",
@@ -73,10 +73,10 @@ function ClassesManagement() {
         setClasses(data.data || []);
         closeAddModal();
       } else {
-        Swal.fire("Error", result.message || "Failed to add class.", "error");
+        Swal.fire("Error", result.message || "Failed to add program.", "error");
       }
     } catch (error) {
-      Swal.fire("Error", "Failed to add class.", "error");
+      Swal.fire("Error", "Failed to add program.", "error");
     }
   };
 
@@ -95,7 +95,7 @@ function ClassesManagement() {
       });
       const result = await response.json();
       if (result.success) {
-        Swal.fire("Success", "Class updated successfully!", "success");
+        Swal.fire("Success", "Program updated successfully!", "success");
         // Refetch classes
         const res = await fetch(process.env.REACT_APP_API_URL + "select", {
           method: "POST",
@@ -106,10 +106,10 @@ function ClassesManagement() {
         setClasses(data.data || []);
         closeEditModal();
       } else {
-        Swal.fire("Error", result.message || "Failed to update class.", "error");
+        Swal.fire("Error", result.message || "Failed to update program.", "error");
       }
     } catch (error) {
-      Swal.fire("Error", "Failed to update class.", "error");
+      Swal.fire("Error", "Failed to update program.", "error");
     }
   };
 
@@ -126,7 +126,7 @@ function ClassesManagement() {
       });
       const result = await response.json();
       if (result.success) {
-        Swal.fire("Deleted!", "Class deleted successfully.", "success");
+        Swal.fire("Deleted!", "Program deleted successfully.", "success");
         // Refetch classes
         const res = await fetch(process.env.REACT_APP_API_URL + "select", {
           method: "POST",
@@ -137,10 +137,10 @@ function ClassesManagement() {
         setClasses(data.data || []);
         closeDeleteModal();
       } else {
-        Swal.fire("Error", result.message || "Failed to delete class.", "error");
+        Swal.fire("Error", result.message || "Failed to delete program.", "error");
       }
     } catch (error) {
-      Swal.fire("Error", "Failed to delete class.", "error");
+      Swal.fire("Error", "Failed to delete program.", "error");
     }
   };
 
@@ -181,9 +181,9 @@ function ClassesManagement() {
   // Filtered data
   const filteredData = classes.filter(
     (item) =>
-      (item.section && item.section.toLowerCase().includes(filterText.toLowerCase())) ||
-      (item.level && item.level.toLowerCase().includes(filterText.toLowerCase())) ||
-      (item.course && item.course.toLowerCase().includes(filterText.toLowerCase()))
+      (item.section && item.section.toString().toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.level && item.level.toString().toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.course && item.course.toString().toLowerCase().includes(filterText.toLowerCase()))
   );
 
   // Table columns
@@ -258,18 +258,18 @@ function ClassesManagement() {
           toggleSidebar={toggleSidebar}
           openMobileSidebar={openMobileSidebar}
         />
-        <div className="flex-grow-1 p-4 d-flex flex-column">
-          <h2>Classes Management</h2>
+        <div className="flex-grow-1 p-4">
+          <h4 className="mb-3">Program Management</h4>
           <div className="mb-3 d-flex justify-content-between align-items-center">
             <input
               type="text"
-              placeholder="Search classes..."
+              placeholder="Search programs..."
               className="form-control w-50"
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
             />
             <button className="btn btn-success ms-3" onClick={openAddModal}>
-              <i className="bi bi-plus me-1"></i> Add Class
+              <i className="bi bi-plus me-1"></i> Add Program
             </button>
           </div>
           <DataTable
@@ -295,7 +295,7 @@ function ClassesManagement() {
               <form onSubmit={handleAddClass}>
                 <div className="modal-content">
                   <div className="modal-header">
-                    <h5 className="modal-title">Add Class</h5>
+                    <h5 className="modal-title">Add Program</h5>
                     <button type="button" className="btn-close" onClick={closeAddModal}></button>
                   </div>
                   <div className="modal-body">
@@ -360,7 +360,7 @@ function ClassesManagement() {
               <form onSubmit={handleEditClass}>
                 <div className="modal-content">
                   <div className="modal-header">
-                    <h5 className="modal-title">Edit Class</h5>
+                    <h5 className="modal-title">Edit Program</h5>
                     <button type="button" className="btn-close" onClick={closeEditModal}></button>
                   </div>
                   <div className="modal-body">
@@ -424,13 +424,13 @@ function ClassesManagement() {
             <div className="modal-dialog" role="document" onClick={(e) => e.stopPropagation()}>
               <div className="modal-content">
                 <div className="modal-header">
-                  <h5 className="modal-title">Delete Class</h5>
-                  <button type="button" className="btn-close" onClick={closeDeleteModal}></button>
-                </div>
-                <div className="modal-body">
-                  <p>
-                    Are you sure you want to delete this class?
-                  </p>
+                    <h5 className="modal-title">Delete Program</h5>
+                    <button type="button" className="btn-close" onClick={closeDeleteModal}></button>
+                  </div>
+                  <div className="modal-body">
+                    <p>
+                      Are you sure you want to delete this program?
+                    </p>
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={closeDeleteModal}>

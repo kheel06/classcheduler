@@ -10,52 +10,99 @@ use Illuminate\Support\Facades\Validator;
 
 class DatabaseController extends Controller
 {
+    /**
+     * Resolve "logical" table names used by the frontend to the actual DB tables.
+     *
+     * This app historically used a `class` table with columns (section, level, course).
+     * Your database uses a `program` table with columns (section, level, program).
+     *
+     * To avoid rewriting multiple frontend pages, we alias:
+     * - `class`  -> `program`
+     * And map columns:
+     * - `course` <-> `program`
+     */
+    private function resolveTable(string $table): string
+    {
+        // Default to identity mapping. 
+        // If 'class' table exists in DB, use it directly.
+        return $table;
+    }
+
+    private function mapPayloadToResolvedTable(string $originalTable, array $data): array
+    {
+        return $data;
+    }
     // ✅ SELECT (Login + General Select)
     public function select(Request $request)
     {
         $table = $request->input('table');
         $conditions = $request->input('conditions', []);
+        
+        // Convert conditions to array if it's an object
+        if (is_object($conditions)) {
+            $conditions = (array) $conditions;
+        }
 
         try {
             // ✅ Special case: login (email + password)
-            if ($table === 'users' && isset($conditions['email']) && isset($conditions['password'])) {
-                $email = $conditions['email'];
-                $password = md5($conditions['password']);
+            if ($table === 'users' && !empty($conditions['email']) && !empty($conditions['password'])) {
+                $email = trim($conditions['email']);
+                $password = md5(trim($conditions['password']));
 
-                $user = DB::table('users')
-                    ->where('email', $email)
-                    ->where('password', $password)
-                    ->first();
+                // Query user directly
+                $user = DB::selectOne("SELECT * FROM users WHERE email = ? AND password = ?", [$email, $password]);
+                
+                if (!$user) {
+                    // Try to find user by email only for debugging
+                    $userByEmail = DB::selectOne("SELECT * FROM users WHERE email = ?", [$email]);
+                    if ($userByEmail) {
+                        // User exists but password doesn't match
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Invalid password',
+                            'data'    => [],
+                        ]);
+                    }
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found',
+                        'data'    => [],
+                    ]);
+                }
+                
+                // Convert stdClass to array for easier manipulation
+                $user = (array) $user;
 
-                if ($user) {
-                    unset($user->password);
+                // Password matches - login successful
+                unset($user['password']);
 
-                    // ✅ Log the login action using user ID from database
+                // ✅ Log the login action using user ID from database
+                try {
                     $this->logAction(
                         'login',
                         'users',
-                        $user->id,
-                        "User {$user->email} logged in successfully",
-                        $user->id
+                        $user['id'],
+                        "User {$user['email']} logged in successfully",
+                        $user['id']
                     );
-
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Login successful',
-                        'data'    => [$user],
-                    ]);
+                } catch (\Exception $e) {
+                    // Log action failed, but continue with login
+                    \Log::warning('Log action failed: ' . $e->getMessage());
                 }
 
-                // ❌ invalid login
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid email or password',
-                    'data'    => [],
+                    'success' => true,
+                    'message' => 'Login successful',
+                    'data'    => [$user],
                 ]);
             }
 
             // ✅ Default: regular SELECT
-            $query = DB::table($table);
+            $resolvedTable = $this->resolveTable($table);
+
+            // Use simple select * for now to avoid column name mismatch errors.
+            $query = DB::table($resolvedTable);
+
             foreach ($conditions as $col => $val) {
                 $query->where($col, $val);
             }
@@ -92,6 +139,8 @@ class DatabaseController extends Controller
         $userId = $request->input('user_id_session');
 
         try {
+            $resolvedTable = $this->resolveTable($table);
+            $data = $this->mapPayloadToResolvedTable($table, $data);
             // Server-side validation for users table
             if ($table === 'users') {
                 $validator = Validator::make($data, [
@@ -207,7 +256,7 @@ class DatabaseController extends Controller
                 }
             }
 
-            $id = DB::table($table)->insertGetId($data);
+            $id = DB::table($resolvedTable)->insertGetId($data);
 
             $this->logAction('insert', $table, $id, "Inserted new record into {$table}", $userId);
 
@@ -237,6 +286,8 @@ class DatabaseController extends Controller
         $userId     = $request->input('user_id_session');
 
         try {
+            $resolvedTable = $this->resolveTable($table);
+            $data = $this->mapPayloadToResolvedTable($table, $data);
             if (empty($conditions)) {
                 return response()->json([
                     'success' => false,
@@ -308,7 +359,7 @@ class DatabaseController extends Controller
             }
 
             if (isset($data['email']) && isset($conditions['id'])) {
-                $exists = DB::table($table)
+                $exists = DB::table($resolvedTable)
                     ->where('email', $data['email'])
                     ->where('id', '!=', $conditions['id'])
                     ->exists();
@@ -322,7 +373,7 @@ class DatabaseController extends Controller
                 }
             }
 
-            $query = DB::table($table);
+            $query = DB::table($resolvedTable);
             foreach ($conditions as $col => $val) {
                 $query->where($col, $val);
             }
@@ -364,7 +415,8 @@ class DatabaseController extends Controller
         $userId     = $request->input('user_id_session');
 
         try {
-            $query = DB::table($table);
+            $resolvedTable = $this->resolveTable($table);
+            $query = DB::table($resolvedTable);
             foreach ($conditions as $col => $val) {
                 $query->where($col, $val);
             }

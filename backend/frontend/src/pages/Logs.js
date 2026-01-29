@@ -157,12 +157,12 @@ function LogsPage() {
           toggleSidebar={toggleSidebar}
           openMobileSidebar={openMobileSidebar}
         />
-        <div className="flex-grow-1 p-4 d-flex flex-column">
-          <h2>Logs</h2>
+        <div className="flex-grow-1 p-4">
+          <h4 className="mb-3">Audit Trail</h4>
           <div className="mb-3 d-flex justify-content-between align-items-center">
             <input
               type="text"
-              placeholder="Search logs..."
+              placeholder="Search audit trail..."
               className="form-control w-50"
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}

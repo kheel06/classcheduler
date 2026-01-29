@@ -76,7 +76,8 @@ const Sidebar = ({ collapsed }) => {
   const profileSrc = resolveProfileSrc(rawProfile);
 
   // Minimal nav items — layout/UI only. Keep links that belong to this app.
-  const navGroups = [
+  // Filter menu items based on role
+  const allNavGroups = [
     {
       category: "MAIN MENU",
       items: [
@@ -87,7 +88,7 @@ const Sidebar = ({ collapsed }) => {
     {
       category: "ACADEMIC MANAGEMENT",
       items: [
-        { label: "Classes", icon: "bi-journal", path: "/classes" },
+        { label: "Programs", icon: "bi-journal", path: "/program" },
         { label: "Subjects", icon: "bi-book", path: "/subjects" },
       ],
     },
@@ -100,7 +101,8 @@ const Sidebar = ({ collapsed }) => {
     {
       category: "ADMINISTRATION",
       items: [
-        { label: "Activity", icon: "bi-clipboard-data", path: "/activity" },
+        { label: "Audit Trail", icon: "bi-clipboard-data", path: "/activity" },
+        { label: "Reports", icon: "bi-file-earmark-text", path: "/reports" },
         { label: "Users", icon: "bi-people", path: "/users" },
       ],
     },
@@ -111,6 +113,34 @@ const Sidebar = ({ collapsed }) => {
       ],
     },
   ];
+
+  // Filter navigation groups based on role
+  const navGroups = (() => {
+    // Admin role should only see Dashboard and Calendar
+    if (role === "ADMIN" || role === "Admin" || role === "admin") {
+      return [
+        {
+          category: "MAIN MENU",
+          items: [
+            { label: "Dashboard", icon: "bi-house-door", path: "/dashboard" },
+            { label: "Calendar", icon: "bi-calendar2-week", path: "/calendar" },
+          ],
+        },
+      ];
+    }
+    // SuperAdmin and other roles see all menu items
+    return allNavGroups;
+  })();
+
+  // Helper to map role names to UI labels
+  const getDisplayRole = (role) => {
+    const r = role.toUpperCase();
+    if (r === "SUPERADMIN") return "Manager";
+    if (r === "ADMIN") return "Staff";
+    return role;
+  };
+
+  const displayRole = getDisplayRole(role);
 
   // Helper to compute initials
   const getInitials = (name) => {
@@ -148,7 +178,7 @@ const Sidebar = ({ collapsed }) => {
           <>
             <div className="sidebar-name">{displayName}</div>
             <div className="sidebar-email">{email}</div>
-            <div className="sidebar-role">{role}</div>
+            <div className="sidebar-role">{displayRole}</div>
           </>
         )}
       </div>

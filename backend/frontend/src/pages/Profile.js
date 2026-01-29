@@ -181,7 +181,9 @@ const handleSubmit = async (e) => {
           openMobileSidebar={openMobileSidebar}
         />
 
-        <div className="flex-grow-1 p-4 d-flex flex-column align-items-center">
+        <div className="flex-grow-1 p-4">
+          <h4 className="mb-3">Profile</h4>
+          <div className="d-flex flex-column align-items-center">
           <form className="card p-4 col-12" style={{ maxWidth: 500 }} onSubmit={handleSubmit}>
             <div className="mb-3 d-flex justify-content-center">
               <img
@@ -278,6 +280,7 @@ const handleSubmit = async (e) => {
             </div>
             <button type="submit" className="btn btn-primary w-100">Update Profile</button>
           </form>
+          </div>
         </div>
 
         <Footer darkMode={darkMode} />

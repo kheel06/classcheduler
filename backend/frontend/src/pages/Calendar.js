@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import MobileSidebar from "../components/MobileSidebar";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import { format, parse, startOfWeek, getDay, addDays, startOfMonth, endOfMonth, endOfWeek, isSameDay } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
@@ -25,24 +25,9 @@ const CustomToolbar = ({ label, onNavigate, onView }) => {
   return (
     <div className="d-flex justify-content-between align-items-center mb-3">
       <div>
-        <button
-          className="btn btn-sm btn-primary me-1"
-          onClick={() => onNavigate("TODAY")}
-        >
-          Today
-        </button>
-        <button
-          className="btn btn-sm btn-secondary me-1"
-          onClick={() => onNavigate("PREV")}
-        >
-          Back
-        </button>
-        <button
-          className="btn btn-sm btn-primary"
-          onClick={() => onNavigate("NEXT")}
-        >
-          Next
-        </button>
+        <button className="btn btn-sm btn-primary me-1" onClick={() => onNavigate("TODAY")}>Today</button>
+        <button className="btn btn-sm btn-secondary me-1" onClick={() => onNavigate("PREV")}>Back</button>
+        <button className="btn btn-sm btn-primary" onClick={() => onNavigate("NEXT")}>Next</button>
       </div>
       <h5 className="mb-0">{label}</h5>
       <div>
@@ -54,209 +39,140 @@ const CustomToolbar = ({ label, onNavigate, onView }) => {
   );
 };
 
-
 function CalendarPage() {
   const [darkMode, setDarkMode] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [events, setEvents] = useState([]);
-  const [, setUsers] = useState([]);
-  const [, setLoading] = useState(true);
+
+  const [events, setEvents] = useState([]); // Displayed events (recurring instances)
+  const [rawSchedules, setRawSchedules] = useState([]); // Raw weekly schedules from API
+
+  const [users, setUsers] = useState([]); // Teachers
   const [classes, setClasses] = useState([]);
-const [rooms, setRooms] = useState([]);
-const [conflicts, setConflicts] = useState([]);
- const typeNames = ["Regular Class", "Special Class", "Exam", "Assignment"];
+  const [rooms, setRooms] = useState([]);
+  const [subjects, setSubjects] = useState([]);
 
- // Function to reset the form to add a new schedule
-const handleNewSchedule = () => {
-  setFormData({
-    room_id: "",
-    class_id: "",
-    type: 0,
-    description: "",
-    datetime_start: "",
-    datetime_end: "",
-  });
-  setEditScheduleId(null);
-  setAutoDescription(true); // re-enable auto-description
-};
-
-
-const checkConflicts = useCallback((events) => {
-  const conflictList = [];
-
-  for (let i = 0; i < events.length; i++) {
-    for (let j = i + 1; j < events.length; j++) {
-      const e1 = events[i];
-      const e2 = events[j];
-
-      const sameRoom = e1.room_id === e2.room_id;
-      const sameClass = e1.class_id === e2.class_id;
-
-      const overlap =
-        new Date(e1.start) < new Date(e2.end) &&
-        new Date(e1.end) > new Date(e2.start);
-
-      if (overlap && (sameRoom || sameClass)) {
-        conflictList.push({
-          first: e1,
-          second: e2,
-          type: sameRoom ? "room" : "class",
-          typeName: typeNames[e1.type_number] || "Unknown",
-        });
-      }
-    }
-  }
-  setConflicts(conflictList);
-}, []);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentView, setCurrentView] = useState("month");
 
   const [formData, setFormData] = useState({
     room_id: "",
     class_id: "",
-    type: 0,
+    subject_id: "",
+    teacher_id: "",
+    days: [], // Array of strings: ['Mon', 'Wed']
+    start_time: "",
+    end_time: "",
+    type: "Lecture",
     description: "",
-    datetime_start: "",
-    datetime_end: "",
   });
-  const [editScheduleId, setEditScheduleId] = useState(null);
 
-  const [currentDate, setCurrentDate] = useState(new Date()); // controlled date
-  const [currentView, setCurrentView] = useState("month");      // controlled view
+  const [editScheduleId, setEditScheduleId] = useState(null);
+  const [conflicts, setConflicts] = useState([]);
+
+  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const sidebarWidth = collapsed ? 80 : 250;
 
-  // Fetch schedules with class and room info
+  // Fetch Data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [usersRes, classesRes, roomsRes, subjectsRes] = await Promise.all([
+          fetch(process.env.REACT_APP_API_URL + "select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ table: "users" }) }),
+          fetch(process.env.REACT_APP_API_URL + "select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ table: "class" }) }),
+          fetch(process.env.REACT_APP_API_URL + "select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ table: "rooms" }) }),
+          fetch(process.env.REACT_APP_API_URL + "select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ table: "subjects" }) }),
+        ]);
+
+        const usersData = await usersRes.json();
+        const classesData = await classesRes.json();
+        const roomsData = await roomsRes.json();
+        const subjectsData = await subjectsRes.json();
+
+        if (usersData.success) setUsers(usersData.data);
+        if (classesData.success) setClasses(classesData.data);
+        if (roomsData.success) setRooms(roomsData.data);
+        if (subjectsData.success) setSubjects(subjectsData.data);
+
+        fetchSchedules();
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
   const fetchSchedules = async () => {
-    setLoading(true);
     try {
-      // Fetch schedules
-      const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table: "schedules" }),
-      });
-      const result = await res.json();
-
-      // Fetch classes and rooms for mapping
-      const [classRes, roomRes] = await Promise.all([
-        fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "class" }),
-        }),
-        fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "rooms" }),
-        }),
-      ]);
-      const classResult = await classRes.json();
-      const roomResult = await roomRes.json();
-
-      // Map class_id and room_id to their details
-      const classMap = {};
-      if (classResult.success && Array.isArray(classResult.data)) {
-        classResult.data.forEach((c) => {
-          classMap[c.id] = `${c.course || ""} ${c.level || ""} ${c.section || ""}`.trim();
-        });
+      const res = await fetch(process.env.REACT_APP_API_URL + "schedules"); // New Endpoint
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setRawSchedules(data);
       }
-      const roomMap = {};
-      if (roomResult.success && Array.isArray(roomResult.data)) {
-        roomResult.data.forEach((r) => {
-          roomMap[r.id] = r.room_number;
-        });
-      }
-
-      if (result.success && Array.isArray(result.data)) {
-        setEvents(
-          result.data.map((s) => ({
-            id: s.id,
-            title: s.description || "No Title",
-            start: new Date(s.datetime_start),
-            end: new Date(s.datetime_end),
-            type_number: s.type,
-            room_id: s.room_id,
-            room_name: roomMap[s.room_id] || s.room_id,
-            class_id: s.class_id,
-            class_name: classMap[s.class_id] || s.class_id,
-            type:
-              s.type === 0
-                ? "success"
-                : s.type === 1
-                ? "info"
-                : s.type === 2
-                ? "danger"
-                : "warning",
-          }))
-        );
-      } else {
-        setEvents([]);
-      }
-      
     } catch (error) {
-      setEvents([]);
-    } finally {
-      setLoading(false);
+      console.error("Error fetching schedules:", error);
     }
   };
-useEffect(() => {
-  fetchSchedules();
-}, []); // empty array → runs only once on mount
 
-useEffect(() => {
-  if (events.length) checkConflicts(events); // recompute conflicts when events change
-}, [events, checkConflicts]);
-
-
-  // Fetch users, classes, and rooms
+  // Generate Events from Raw Schedules based on View Range
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "users" }),
-        });
-        const result = await res.json();
-        if (result.success && Array.isArray(result.data)) setUsers(result.data);
-      } catch (error) {
-        setUsers([]);
-      }
-    };
+    if (!rawSchedules.length) {
+      setEvents([]);
+      return;
+    }
 
-    const fetchClasses = async () => {
-      try {
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "class" }),
-        });
-        const result = await res.json();
-        if (result.success && Array.isArray(result.data)) setClasses(result.data);
-      } catch (error) {
-        setClasses([]);
-      }
-    };
+    let start, end;
+    if (currentView === 'month') {
+      start = startOfMonth(currentDate);
+      end = endOfMonth(currentDate);
+      // Adjust to full weeks to cover visible grid
+      start = startOfWeek(start, { weekStartsOn: 1 });
+      end = endOfWeek(end, { weekStartsOn: 1 });
+    } else if (currentView === 'week') {
+      start = startOfWeek(currentDate, { weekStartsOn: 1 });
+      end = endOfWeek(currentDate, { weekStartsOn: 1 });
+    } else { // day
+      start = currentDate;
+      end = currentDate;
+    }
 
-    const fetchRooms = async () => {
-      try {
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "rooms" }),
-        });
-        const result = await res.json();
-        if (result.success && Array.isArray(result.data)) setRooms(result.data);
-      } catch (error) {
-        setRooms([]);
-      }
-    };
+    const generatedEvents = [];
+    let loopDate = new Date(start);
 
-    fetchUsers();
-    fetchClasses();
-    fetchRooms();
-    fetchSchedules();
-  }, []);
+    while (loopDate <= end) {
+      const dayName = format(loopDate, 'EEE'); // Mon, Tue, ...
+
+      const daySchedules = rawSchedules.filter(s => s.day_of_week === dayName);
+
+      daySchedules.forEach(s => {
+        // Parse time strings "10:00:00" -> Date on loopDate
+        const [startH, startM] = s.start_time.split(':');
+        const [endH, endM] = s.end_time.split(':');
+
+        const eventStart = new Date(loopDate);
+        eventStart.setHours(parseInt(startH), parseInt(startM), 0);
+
+        const eventEnd = new Date(loopDate);
+        eventEnd.setHours(parseInt(endH), parseInt(endM), 0);
+
+        generatedEvents.push({
+          id: s.id, // Schedule ID
+          title: s.description || `${s.subject?.subject_code || 'Subject'} (${s.room?.room_code || s.room?.room_name || 'Room'})`,
+          start: eventStart,
+          end: eventEnd,
+          resource: s,
+          type: s.type,
+          allDay: false
+        });
+      });
+
+      loopDate = addDays(loopDate, 1);
+    }
+    setEvents(generatedEvents);
+
+  }, [rawSchedules, currentDate, currentView]);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -267,336 +183,284 @@ useEffect(() => {
   const openMobileSidebar = () => setMobileSidebarOpen(true);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);
 
-const [autoDescription, setAutoDescription] = useState(true);
-
-const handleChange = (e) => {
-  const { name, value } = e.target;
-
-  setFormData((prev) => {
-    const updated = { ...prev, [name]: value };
-
-const updatedClassId = Number(updated.class_id);
-const updatedRoomId = Number(updated.room_id);
-
-const selectedClass = classes.find(c => c.id === updatedClassId);
-const selectedRoom = rooms.find(r => r.id === updatedRoomId);
-
-    const selectedType = typeNames[updated.type] || "";
-
-    // Only auto-update description if autoDescription is true
-    if (autoDescription || name === "type" || name === "class_id" || name === "room_id") {
-      const classText = selectedClass ? `${selectedClass.section} - ${selectedClass.level} - ${selectedClass.course}` : "";
-      const roomText = selectedRoom ? selectedRoom.room_number : "";
-      updated.description = `Class (${classText}${classText && roomText ? ") will use room (" : ""}${roomText}${(classText || roomText) && selectedType ? ") for (" : ""}${selectedType})`;
-    }
-
-    return updated;
-  });
-
-  // If the user manually types in the description, stop auto-updating it
-  if (name === "description") setAutoDescription(false);
-  else setAutoDescription(true); // changing type/class/room keeps auto-update
-};
-
-    const handleAddSchedule = async (e) => {
-e.preventDefault();
-try {
-const response = await fetch(process.env.REACT_APP_API_URL + "insert", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    table: "schedules",
-    data: formData,
-  }),
-});
-const result = await response.json();   
-if (result.success) { 
-  Swal.fire("Success", "Schedule added successfully!", "success");  
-  setFormData({ room_id: "", class_id: "", type: 0, description: "", datetime_start: "", datetime_end: "" });
-fetchSchedules(); 
-
-}
-} catch (error) { 
-  Swal.fire("Error", "Failed to add schedule.", "error");
-}
-
-
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleEditSchedule = async (e, updatedEvent = null) => {
-    if (e) e.preventDefault();
+  const handleDayChange = (day) => {
+    setFormData(prev => {
+      const days = prev.days.includes(day)
+        ? prev.days.filter(d => d !== day)
+        : [...prev.days, day];
+      return { ...prev, days };
+    });
+  };
 
-    const id = updatedEvent?.id || editScheduleId;
-    if (!id) {
-      Swal.fire("Error", "No schedule selected for update.", "error");
-      return;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setConflicts([]);
+
+    // Prepare Payload
+    const payload = {
+      ...formData,
+      // days is already array
+    };
+
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "update", {
-        method: "POST",
+      let url = process.env.REACT_APP_API_URL + "schedules";
+      let method = "POST";
+
+      if (editScheduleId) {
+        url += `/${editScheduleId}`;
+        method = "PUT";
+        // For edit, we only send one day (the original one) or handle bulk update?
+        // The current UI assumes editing a single schedule entry (which is one day).
+        // But the "Add" allows multiple days.
+        // For simplicity, Edit mode only updates the specific schedule ID.
+        // So we need to override the 'days' logic for Edit.
+        payload.day_of_week = formData.days[0]; // Take the first one if multiple selected, but UI should restrict.
+        delete payload.days;
+      }
+
+      const res = await fetch(url, {
+        method: method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          table: "schedules",
-          data: updatedEvent
-            ? updatedEvent
-            : formData,
-          conditions: { id },
-        }),
+        body: JSON.stringify(payload)
       });
-      const result = await response.json();
-      if (result.success) {
-        Swal.fire("Success", "Schedule updated successfully!", "success");
-        if (!updatedEvent) {
-          setFormData({ room_id: "", class_id: "", type: 0, description: "", datetime_start: "", datetime_end: "" });
-          setEditScheduleId(null);
+
+      const result = await res.json();
+
+      if (res.ok) {
+        Swal.fire("Success", editScheduleId ? "Schedule updated!" : "Schedule(s) added!", "success");
+        setFormData({
+          room_id: "",
+          class_id: "",
+          subject_id: "",
+          teacher_id: "",
+          days: [],
+          start_time: "",
+          end_time: "",
+          type: "Lecture",
+          description: "",
+        });
+        setEditScheduleId(null);
+        fetchSchedules();
+      } else {
+        if (res.status === 422 && result.conflicts) {
+          // Flatten conflicts for display
+          const conflictMsgs = [];
+          Object.entries(result.conflicts).forEach(([day, errs]) => {
+            Object.values(errs).forEach(msg => conflictMsgs.push(`${day}: ${msg}`));
+          });
+          setConflicts(conflictMsgs);
+          Swal.fire("Conflict", "Schedule conflicts detected.", "warning");
+        } else {
+          Swal.fire("Error", result.message || "Failed to save schedule.", "error");
         }
-        fetchSchedules();
-      } else Swal.fire("Error", result.message || "Failed to update schedule.", "error");
+      }
     } catch (error) {
-      Swal.fire("Error", "Failed to update schedule.", "error");
-    }
-  };
-
-  const handleDeleteSchedule = async (id) => {
-    try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table: "schedules", conditions: { id } }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        Swal.fire("Deleted!", "Schedule deleted successfully.", "success");
-        fetchSchedules();
-      } else Swal.fire("Error", result.message || "Failed to delete schedule.", "error");
-    } catch (error) {
-      Swal.fire("Error", "Failed to delete schedule.", "error");
+      Swal.fire("Error", "Network error.", "error");
     }
   };
 
   const handleSelectEvent = (event) => {
-  const typeLabel = typeNames[event.type_number] || "Unknown";
-  const roomLabel = event.room_name || event.room_id;
-  const classLabel = event.class_name || event.class_id;
-
-  Swal.fire({
-    title: event.title,
-    html: ` <p><strong>Class:</strong> ${classLabel}</p><p><strong>Start:</strong> ${new Date(event.start).toLocaleString()}</p>
-           <p><strong>End:</strong> ${new Date(event.end).toLocaleString()}</p>
-           <p><strong>Type:</strong> ${typeLabel}</p>
-           
-           <p><strong>Room:</strong> ${roomLabel}</p>
-          `,
-    icon: "info",
-    confirmButtonText: "Close",
-    customClass: { popup: darkMode ? "bg-dark text-white" : "" },
-  });
-
-    setFormData({
-      room_id: event.room_id || "",
-      class_id: event.class_id || "",
-      type: event.type_number ?? 0,
-      description: event.title || "",
-      datetime_start: new Date(event.start).toISOString().slice(0, 16),      datetime_end: new Date(event.end).toISOString().slice(0, 16),
+    const s = event.resource;
+    Swal.fire({
+      title: "Schedule Details",
+      html: `
+        <p><strong>Subject:</strong> ${s.subject?.subject_code} - ${s.subject?.subject_name}</p>
+        <p><strong>Teacher:</strong> ${s.teacher?.name}</p>
+        <p><strong>Room:</strong> ${s.room?.room_name} (${s.room?.room_code})</p>
+        <p><strong>Class:</strong> ${s.school_class?.course} ${s.school_class?.level}-${s.school_class?.section}</p>
+        <p><strong>Time:</strong> ${s.start_time} - ${s.end_time}</p>
+        <p><strong>Day:</strong> ${s.day_of_week}</p>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Edit",
+      cancelButtonText: "Delete",
+      cancelButtonColor: "#d33"
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Edit
+        setFormData({
+          room_id: s.room_id,
+          class_id: s.class_id,
+          subject_id: s.subject_id,
+          teacher_id: s.teacher_id,
+          days: [s.day_of_week],
+          start_time: s.start_time.substring(0, 5), // HH:mm
+          end_time: s.end_time.substring(0, 5),
+          type: s.type,
+          description: s.description || ""
+        });
+        setEditScheduleId(s.id);
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        // Delete
+        handleDelete(s.id);
+      }
     });
-    setEditScheduleId(event.id);
   };
 
-  const moveEvent = ({ event, start, end }) => {
-    const updatedData = {
-      datetime_start: start.toISOString().slice(0, 19),
-      datetime_end: end.toISOString().slice(0, 19),
-    };
-    handleEditSchedule(null, { id: event.id, ...updatedData });
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure?")) return;
+    try {
+      const res = await fetch(process.env.REACT_APP_API_URL + `schedules/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        Swal.fire("Deleted", "Schedule deleted.", "success");
+        fetchSchedules();
+      } else {
+        Swal.fire("Error", "Failed to delete.", "error");
+      }
+    } catch (e) {
+      Swal.fire("Error", "Network error.", "error");
+    }
   };
 
   const eventStyleGetter = (event) => {
     let bg = "#3174ad";
-    if (event.type === "success") bg = "#28a745";
-    if (event.type === "danger") bg = "#dc3545";
-    if (event.type === "info") bg = "#17a2b8";
-    if (event.type === "warning") bg = "#ffc107";
+    if (event.type === "Lecture") bg = "#28a745";
+    if (event.type === "Lab") bg = "#17a2b8";
+    if (event.type === "Exam") bg = "#dc3545";
     return { style: { backgroundColor: bg, color: "white", borderRadius: "5px", border: "none" } };
-  };
-
-  // Toolbar handlers to control view and date
-  const handleNavigate = (action) => {
-    let newDate = new Date(currentDate);
-    if (action === "TODAY") newDate = new Date();
-    else if (action === "PREV") {
-      if (currentView === "month") newDate.setMonth(newDate.getMonth() - 1);
-      else if (currentView === "week") newDate.setDate(newDate.getDate() - 7);
-      else newDate.setDate(newDate.getDate() - 1);
-    } else if (action === "NEXT") {
-      if (currentView === "month") newDate.setMonth(newDate.getMonth() + 1);
-      else if (currentView === "week") newDate.setDate(newDate.getDate() + 7);
-      else newDate.setDate(newDate.getDate() + 1);
-    }
-    setCurrentDate(newDate);
-  };
-
-  const handleViewChange = (view) => {
-    setCurrentView(view);
   };
 
   return (
     <div className={`d-flex min-vh-100 ${darkMode ? "bg-dark text-white" : "bg-light"} overflow-hidden`}>
       <Sidebar collapsed={collapsed} />
-      <div
-        className="d-flex flex-column flex-grow-1"
-        style={{ marginLeft: window.innerWidth >= 768 ? sidebarWidth : 0, transition: "margin-left 0.3s", minWidth: 0 }}
-      >
+      <div className="d-flex flex-column flex-grow-1" style={{ marginLeft: window.innerWidth >= 768 ? sidebarWidth : 0, transition: "margin-left 0.3s", minWidth: 0 }}>
         <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} toggleSidebar={toggleSidebar} openMobileSidebar={openMobileSidebar} />
         <div className="flex-grow-1 p-4">
           <div className="row">
             <div className="col-12 col-md-8 mb-4">
               <div className="card p-4 h-100">
-                <h4 className="mb-3">Calendar</h4>
-                  <DnDCalendar
-                    localizer={localizer}
-                    events={events}
-                    startAccessor="start"
-                    endAccessor="end"
+                <h4 className="mb-3">Weekly Schedule</h4>
+                <DnDCalendar
+                  localizer={localizer}
+                  events={events}
+                  startAccessor="start"
+                  endAccessor="end"
                   style={{ height: "70vh" }}
-                    selectable
-                    onSelectEvent={handleSelectEvent}
-                    eventPropGetter={eventStyleGetter}
-                    draggableAccessor={() => true}
-                    onEventDrop={moveEvent}
-                    resizable
-                    onEventResize={moveEvent}
-                    components={{
-                      toolbar: (toolbarProps) => (
-                        <CustomToolbar
-                          {...toolbarProps}
-                          onNavigate={handleNavigate}
-                          onView={handleViewChange}
-                        />
-                      ),
-                    }}
-                    date={currentDate}   // controlled date
-                    view={currentView}   // controlled view
-                    onNavigate={setCurrentDate}
-                    onView={setCurrentView}
-                  />
+                  selectable
+                  onSelectEvent={handleSelectEvent}
+                  eventPropGetter={eventStyleGetter}
+                  draggableAccessor={() => false} // Disable drag for now as it complicates recurring logic
+                  date={currentDate}
+                  view={currentView}
+                  onNavigate={setCurrentDate}
+                  onView={setCurrentView}
+                  components={{ toolbar: (props) => <CustomToolbar {...props} /> }}
+                />
               </div>
             </div>
 
             <div className="col-12 col-md-4">
               <div className="card p-4">
                 <h4 className="mb-3">{editScheduleId ? "Edit Schedule" : "Add Schedule"}</h4>
-{conflicts.length > 0 && (
-  <div className="alert alert-danger mb-3">
-    <h5>Schedule Conflicts Detected:</h5>
-    <ul className="mb-0" style={{ listStyle: "none", paddingLeft: 0 }}>
-      {conflicts.map((c, idx) => (
-        <li key={idx} style={{ marginBottom: "1rem" }}>
-          <strong>{c.first.title}</strong> overlaps with <strong>{c.second.title}</strong><br />
-          {new Date(c.first.start).toLocaleString()} - {new Date(c.first.end).toLocaleString()}<br />
-          {new Date(c.second.start).toLocaleString()} - {new Date(c.second.end).toLocaleString()}
-        </li>
-      ))}
-    </ul>
-  </div>
-)}
 
+                {conflicts.length > 0 && (
+                  <div className="alert alert-danger">
+                    <ul className="mb-0 ps-3">
+                      {conflicts.map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
+                  </div>
+                )}
 
-                <form onSubmit={editScheduleId ? handleEditSchedule : handleAddSchedule}>
-              <div className="mb-3">
-  <label className="form-label"><strong>Room</strong></label>
-<select
-  className="form-control"
-  name="room_id"
-  value={formData.room_id}
-  onChange={handleChange}
-  required
->
-  <option value="">Select Room</option>
-  {rooms.map((r) => (
-    <option
-      key={r.id}
-      value={r.id}
-      disabled={r.status === 1} // disable inactive rooms
-    >
-      {r.room_number} {r.status === 1 ? "(Unavailable)" : ""}
-    </option>
-  ))}
-</select>
-
-</div>
-
-<div className="mb-3">
-  <label className="form-label"><strong>Class</strong></label>
-  <select
-    className="form-control"
-    name="class_id"
-    value={formData.class_id}
-    onChange={handleChange}
-    required
-  >
-    <option value="">Select Class</option>
-    {classes.map((c) => (
-      <option key={c.id} value={c.id}>
-        {`${c.section} - ${c.level} - ${c.course}`}
-      </option>
-    ))}
-  </select>
-</div>
-
+                <form onSubmit={handleSubmit}>
+                  {/* Subject */}
                   <div className="mb-3">
-                    <label className="form-label"><strong>Type</strong></label>
-                    <select className="form-control" name="type" value={formData.type} onChange={handleChange}>
-                      <option value={0}>Regular Class</option>
-                      <option value={1}>Special Class</option>
-                      <option value={2}>Exam</option>
-                      <option value={3}>Assignment</option>
+                    <label className="form-label">Subject</label>
+                    <select className="form-control" name="subject_id" value={formData.subject_id} onChange={handleChange} required>
+                      <option value="">Select Subject</option>
+                      {subjects.map(s => <option key={s.id} value={s.id}>{s.subject_code} - {s.subject_name}</option>)}
                     </select>
                   </div>
+
+                  {/* Teacher */}
                   <div className="mb-3">
-                    <label className="form-label"><strong>Description</strong></label>
-                    <input type="text" className="form-control" name="description" value={formData.description} onChange={handleChange} />
+                    <label className="form-label">Teacher</label>
+                    <select className="form-control" name="teacher_id" value={formData.teacher_id} onChange={handleChange} required>
+                      <option value="">Select Teacher</option>
+                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
                   </div>
+
+                  {/* Class */}
                   <div className="mb-3">
-                    <label className="form-label"><strong>Start Date & Time</strong></label>
-                    <input type="datetime-local" className="form-control" name="datetime_start" value={formData.datetime_start} onChange={handleChange} required />
+                    <label className="form-label">Class</label>
+                    <select className="form-control" name="class_id" value={formData.class_id} onChange={handleChange} required>
+                      <option value="">Select Class</option>
+                      {classes.map(c => <option key={c.id} value={c.id}>{c.course} {c.level}-{c.section}</option>)}
+                    </select>
                   </div>
+
+                  {/* Room */}
                   <div className="mb-3">
-                    <label className="form-label"><strong>End Date & Time</strong></label>
-                    <input type="datetime-local" className="form-control" name="datetime_end" value={formData.datetime_end} onChange={handleChange} required />
+                    <label className="form-label">Room</label>
+                    <select className="form-control" name="room_id" value={formData.room_id} onChange={handleChange} required>
+                      <option value="">Select Room</option>
+                      {rooms.map(r => <option key={r.id} value={r.id} disabled={r.status === 'Inactive' || r.status === 'Under Renovation'}>{r.room_code} - {r.room_name} ({r.status})</option>)}
+                    </select>
                   </div>
-                  
-<div className="d-flex gap-2">
-  <button type="submit" className="btn btn-primary flex-grow-1">
-    {editScheduleId ? "Update Schedule" : "Add Schedule"}
-  </button>
 
-  {editScheduleId && (
-    <>
-      <button
-        type="button"
-        className="btn btn-secondary flex-grow-1"
-        onClick={handleNewSchedule}
-      >
-        Add New
-      </button>
+                  {/* Days (Only show in Add mode or single day in Edit mode) */}
+                  <div className="mb-3">
+                    <label className="form-label d-block">Days</label>
+                    <div className="d-flex flex-wrap gap-2">
+                      {daysOfWeek.map(day => (
+                        <div key={day} className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id={`day-${day}`}
+                            checked={formData.days.includes(day)}
+                            onChange={() => handleDayChange(day)}
+                            disabled={editScheduleId && formData.days[0] !== day} // Lock other days in edit mode
+                          />
+                          <label className="form-check-label" htmlFor={`day-${day}`}>{day}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-      <button
-        type="button"
-        className="btn btn-danger flex-grow-1"
-        onClick={() => {
-          if (window.confirm("Are you sure you want to delete this schedule?")) {
-            handleDeleteSchedule(editScheduleId);
-          }
-        }}
-      >
-        Delete
-      </button>
-    </>
-  )}
-</div>
+                  <div className="row">
+                    <div className="col-6 mb-3">
+                      <label className="form-label">Start Time</label>
+                      <input type="time" className="form-control" name="start_time" value={formData.start_time} onChange={handleChange} required />
+                    </div>
+                    <div className="col-6 mb-3">
+                      <label className="form-label">End Time</label>
+                      <input type="time" className="form-control" name="end_time" value={formData.end_time} onChange={handleChange} required />
+                    </div>
+                  </div>
 
+                  <div className="mb-3">
+                    <label className="form-label">Type</label>
+                    <select className="form-control" name="type" value={formData.type} onChange={handleChange}>
+                      <option value="Lecture">Lecture</option>
+                      <option value="Lab">Lab</option>
+                      <option value="Exam">Exam</option>
+                    </select>
+                  </div>
 
-              
+                  <div className="mb-3">
+                    <label className="form-label">Description (Optional)</label>
+                    <textarea className="form-control" name="description" value={formData.description} onChange={handleChange} rows="2"></textarea>
+                  </div>
+
+                  <div className="d-flex gap-2">
+                    <button type="submit" className="btn btn-primary flex-grow-1">
+                      {editScheduleId ? "Update" : "Add Schedule"}
+                    </button>
+                    {editScheduleId && (
+                      <button type="button" className="btn btn-secondary" onClick={() => {
+                        setEditScheduleId(null);
+                        setFormData({ ...formData, days: [], start_time: "", end_time: "", description: "" });
+                      }}>Cancel</button>
+                    )}
+                  </div>
                 </form>
               </div>
             </div>

@@ -39,7 +39,7 @@ function Login() {
 
     if (email.trim() !== "" && password.trim() !== "") {
       try {
-        const response = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const response = await fetch(process.env.REACT_APP_API_URL  + "select", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ table: "users", conditions: { email, password } }),

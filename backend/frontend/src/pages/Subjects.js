@@ -19,109 +19,104 @@ function SubjectsManagement() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editSubjectId, setEditSubjectId] = useState(null);
   const [deleteSubjectId, setDeleteSubjectId] = useState(null);
-  const [viewSubjectsModal, setViewSubjectsModal] = useState(false);
-  const [viewClassId, setViewClassId] = useState(null);
-  
-  const openViewSubjectsModal = (classId) => {
-    setViewClassId(classId);
-    setViewSubjectsModal(true);
-  };
-  const closeViewSubjectsModal = () => setViewSubjectsModal(false);
-
-  const classColumns = [
-    {
-      name: "#",
-      selector: (row, idx) => idx + 1,
-      sortable: true,
-      width: "70px",
-    },
-    {
-      name: "Class",
-      selector: (row) => `${row.section} - ${row.level} - ${row.course}`,
-      sortable: true,
-    },
-    {
-      name: "Actions",
-      cell: (row) => (
-          <button
-          className="btn btn-sm btn-outline-info"
-          onClick={() => openViewSubjectsModal(row.id)}
-        >
-          <i className="bi bi-eye me-1"></i>
-        </button>
-      ),
-      center: true,
-    },
-  ];
 
 
+  // Matches DB columns: program_id, subject_name, subject_code, year_level, semester, units
   const [formData, setFormData] = useState({
-    class_id: "",
+    program_id: "",
     subject_name: "",
-    semester: "1",
+    subject_code: "",
+    year_level: "",
+    semester: "1st",
+    units: "",
+  });
+
+  const [addFormData, setAddFormData] = useState({
+    program_id: "",
+    subject_name: "",
+    subject_code: "",
+    year_level: "",
+    semester: "1st",
+    units: "",
   });
   // derived per-view subjects are computed inline where needed
 
   // Fetch classes and subjects
   useEffect(() => {
-    const fetchClasses = async () => {
-      try {
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "class" }),
-        });
-        const data = await res.json();
-        setClasses(data.data || []);
-      } catch {
-        setClasses([]);
-      }
-    };
-    const fetchSubjects = async () => {
-      try {
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "subjects" }),
-        });
-        const data = await res.json();
-        setSubjects(data.data || []);
-      } catch {
-        setSubjects([]);
-      }
-    };
     fetchClasses();
     fetchSubjects();
   }, []);
 
-  // Add subject
+  const fetchClasses = async () => {
+    try {
+      const response = await fetch(process.env.REACT_APP_API_URL + "select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table: "class" }),
+      });
+      const result = await response.json();
+      if (result.success && Array.isArray(result.data)) {
+        setClasses(result.data);
+      } else {
+        setClasses([]);
+      }
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+      setClasses([]);
+    }
+  };
+
+  const fetchSubjects = async () => {
+    try {
+      const response = await fetch(process.env.REACT_APP_API_URL + "subjects");
+      const data = await response.json();
+      setSubjects(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+      setSubjects([]);
+    }
+  };
+
+  // Add subject (for currently viewed program)
+  const openAddSubjectModal = () => {
+    setAddFormData({
+      program_id: "",
+      subject_name: "",
+      subject_code: "",
+      year_level: "",
+      semester: "1st",
+      units: "",
+    });
+    setShowAddModal(true);
+  };
+  const closeAddModal = () => setShowAddModal(false);
+
   const handleAddSubject = async (e) => {
     e.preventDefault();
+
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "insert", {
+      const response = await fetch(process.env.REACT_APP_API_URL + "subjects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          table: "subjects",
-          data: formData,
+          program_id: addFormData.program_id ? Number(addFormData.program_id) : null,
+          subject_name: addFormData.subject_name,
+          subject_code: addFormData.subject_code,
+          year_level: addFormData.year_level ? Number(addFormData.year_level) : null,
+          semester: addFormData.semester,
+          units: addFormData.units ? Number(addFormData.units) : 0,
         }),
       });
-      const result = await response.json();
-      if (result.success) {
+      
+      if (response.ok) {
         Swal.fire("Success", "Subject added successfully!", "success");
-        // Refetch subjects
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "subjects" }),
-        });
-        const data = await res.json();
-        setSubjects(data.data || []);
+        fetchSubjects();
         closeAddModal();
       } else {
+        const result = await response.json();
         Swal.fire("Error", result.message || "Failed to add subject.", "error");
       }
-    } catch {
+    } catch (err) {
       Swal.fire("Error", "Failed to add subject.", "error");
     }
   };
@@ -130,28 +125,25 @@ function SubjectsManagement() {
   const handleEditSubject = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "update", {
-        method: "POST",
+      const response = await fetch(process.env.REACT_APP_API_URL + "subjects/" + editSubjectId, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          table: "subjects",
-          conditions: { id: editSubjectId },
-          data: formData,
+          program_id: formData.program_id ? Number(formData.program_id) : null,
+          subject_name: formData.subject_name,
+          subject_code: formData.subject_code,
+          year_level: formData.year_level ? Number(formData.year_level) : null,
+          semester: formData.semester,
+          units: formData.units ? Number(formData.units) : 0,
         }),
       });
-      const result = await response.json();
-      if (result.success) {
+      
+      if (response.ok) {
         Swal.fire("Success", "Subject updated successfully!", "success");
-        // Refetch subjects
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "subjects" }),
-        });
-        const data = await res.json();
-        setSubjects(data.data || []);
+        fetchSubjects();
         closeEditModal();
       } else {
+        const result = await response.json();
         Swal.fire("Error", result.message || "Failed to update subject.", "error");
       }
     } catch {
@@ -162,27 +154,16 @@ function SubjectsManagement() {
   // Delete subject
   const handleDeleteSubject = async () => {
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          table: "subjects",
-          conditions: { id: deleteSubjectId },
-        }),
+      const response = await fetch(process.env.REACT_APP_API_URL + "subjects/" + deleteSubjectId, {
+        method: "DELETE",
       });
-      const result = await response.json();
-      if (result.success) {
+      
+      if (response.ok) {
         Swal.fire("Deleted!", "Subject deleted successfully.", "success");
-        // Refetch subjects
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "subjects" }),
-        });
-        const data = await res.json();
-        setSubjects(data.data || []);
+        fetchSubjects();
         closeDeleteModal();
       } else {
+        const result = await response.json();
         Swal.fire("Error", result.message || "Failed to delete subject.", "error");
       }
     } catch {
@@ -190,17 +171,15 @@ function SubjectsManagement() {
     }
   };
 
-  // Modal open/close
-  const openAddModal = () => {
-    setFormData({ class_id: "", subject_name: "", semester: "1" });
-    setShowAddModal(true);
-  };
   const openEditModal = (id) => {
     const subj = subjects.find((s) => s.id === id);
     setFormData({
-      class_id: subj.class_id || "",
+      program_id: subj.program_id ? String(subj.program_id) : "",
       subject_name: subj.subject_name || "",
-      semester: subj.semester ? String(subj.semester) : "1",
+      subject_code: subj.subject_code || "",
+      year_level: subj.year_level ? String(subj.year_level) : "",
+      semester: subj.semester ? String(subj.semester) : "1st",
+      units: subj.units ? String(subj.units) : "",
     });
     setEditSubjectId(id);
     setShowEditModal(true);
@@ -209,7 +188,6 @@ function SubjectsManagement() {
     setDeleteSubjectId(id);
     setShowDeleteModal(true);
   };
-  const closeAddModal = () => setShowAddModal(false);
   const closeEditModal = () => setShowEditModal(false);
   const closeDeleteModal = () => setShowDeleteModal(false);
 
@@ -235,21 +213,43 @@ function SubjectsManagement() {
       width: "70px",
     },
     {
-      name: "Class",
+      name: "Program",
       selector: (row) => {
-        const cls = classes.find((c) => c.id === row.class_id);
-        return cls ? `${cls.section} - ${cls.level} - ${cls.course}` : row.class_id;
+        const p = classes.find((c) => c.id === row.program_id);
+        return p ? `${p.section} - ${p.level} - ${p.course}` : (row.program_id ?? "-");
       },
       sortable: true,
     },
     {
       name: "Subject Name",
-      selector: (row) => row.subject_name,
+      selector: (row) => row.subject_name || "-",
       sortable: true,
     },
     {
+      name: "Subject Code",
+      selector: (row) => row.subject_code || "-",
+      sortable: true,
+    },
+    {
+      name: "Units",
+      selector: (row) => row.units || "-",
+      sortable: true,
+      width: "80px",
+    },
+    {
+      name: "Year Level",
+      selector: (row) => row.year_level || "-",
+      sortable: true,
+      width: "100px",
+    },
+    {
       name: "Semester",
-      selector: (row) => (row.semester === 1 ? "First Semester" : "Second Semester"),
+      selector: (row) => {
+          if (row.semester === '1' || row.semester === '1st') return '1st Semester';
+          if (row.semester === '2' || row.semester === '2nd') return '2nd Semester';
+          if (row.semester === 'Summer') return 'Summer';
+          return row.semester || "-";
+      },
       sortable: true,
     },
     {
@@ -276,16 +276,35 @@ function SubjectsManagement() {
     },
   ];
 
-  
+
   const customStyles = {
     headCells: { style: { fontWeight: "bold", fontSize: "14px" } },
     rows: { style: { fontSize: "14px" } },
   };
 
+  const filteredSubjects = subjects.filter((s) => {
+    const q = filterText.toLowerCase();
+    const semesterLabel = (s.semester || "").toString().toLowerCase();
+    const programLabel = (() => {
+      const p = classes.find((c) => c.id === s.program_id);
+      return p ? `${p.section} - ${p.level} - ${p.course}`.toLowerCase() : "";
+    })();
+    return (
+      programLabel.includes(q) ||
+      (s.subject_name || "").toLowerCase().includes(q) ||
+      (s.subject_code || "").toLowerCase().includes(q) ||
+      (s.year_level !== null && s.year_level !== undefined && String(s.year_level).includes(filterText)) ||
+      semesterLabel.includes(q)
+    );
+  });
+
   return (
     <div className={`d-flex min-vh-100 ${darkMode ? "bg-dark text-white" : "bg-light"} overflow-hidden`}>
       <Sidebar collapsed={collapsed} />
-      <div className={`d-flex flex-column flex-grow-1 main-content ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      <div
+        className="d-flex flex-column flex-grow-1"
+        style={{ marginLeft: window.innerWidth >= 768 ? sidebarWidth : 0, transition: "margin-left 0.3s", minWidth: 0 }}
+      >
         <Navbar
           user={user}
           darkMode={darkMode}
@@ -293,73 +312,37 @@ function SubjectsManagement() {
           toggleSidebar={toggleSidebar}
           openMobileSidebar={openMobileSidebar}
         />
-        <div className="flex-grow-1 p-4 d-flex flex-column">
-  <h2>Subjects Management</h2>
-  <div className="mb-3 d-flex justify-content-between align-items-center">
-    <input
-      type="text"
-      placeholder="Search..."
-      className="form-control w-50"
-      value={filterText}
-      onChange={(e) => setFilterText(e.target.value)}
-    />
-    {!viewSubjectsModal && (
-        <button className="btn btn-success ms-3" onClick={openAddModal}>
-        <i className="bi bi-plus me-1"></i> Add Subject
-      </button>
-    )}
-  </div>
+        <div className="flex-grow-1 p-4">
+          <h4 className="mb-3">Subjects Management</h4>
+          <div className="mb-3 d-flex justify-content-between align-items-center">
+            <input
+              type="text"
+              placeholder="Search..."
+              className="form-control w-50"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+            />
+            <button className="btn btn-success ms-3" onClick={openAddSubjectModal}>
+              <i className="bi bi-plus me-1"></i> Add Subject
+            </button>
+          </div>
 
-  {/* Show CLASS table or SUBJECTS table */}
-  {!viewSubjectsModal ? (
-    <DataTable
-      columns={classColumns}
-      data={classes.filter(
-        (cls) =>
-          cls.section?.toLowerCase().includes(filterText.toLowerCase()) ||
-          cls.level?.toString().includes(filterText.toLowerCase()) ||
-          cls.course?.toLowerCase().includes(filterText.toLowerCase())
-      )}
-      pagination
-      highlightOnHover
-      striped
-      customStyles={customStyles}
-      theme={darkMode ? "dark" : "default"}
-    />
-  ) : (
-    <>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5>
-          Subjects for{" "}
-          {classes.find((c) => c.id === viewClassId)
-            ? `${classes.find((c) => c.id === viewClassId).section} - ${
-                classes.find((c) => c.id === viewClassId).level
-              } - ${classes.find((c) => c.id === viewClassId).course}`
-            : ""}
-        </h5>
-        <button className="btn btn-secondary" onClick={closeViewSubjectsModal}>
-          <i className="bi bi-arrow-left me-1"></i> Back
-        </button>
-      </div>
-
-      <DataTable
-        columns={columns} // your subject columns
-        data={subjects.filter((s) => s.class_id === viewClassId)}
-        pagination
-        highlightOnHover
-        striped
-        customStyles={customStyles}
-        theme={darkMode ? "dark" : "default"}
-      />
-    </>
-  )}
-</div>
+          <DataTable
+            columns={columns}
+            data={filteredSubjects}
+            pagination
+            highlightOnHover
+            striped
+            customStyles={customStyles}
+            theme={darkMode ? "dark" : "default"}
+          />
+        </div>
 
         <Footer darkMode={darkMode} />
       </div>
       <MobileSidebar open={mobileSidebarOpen} onClose={closeMobileSidebar} />
 
-      {/* Add Modal */}
+      {/* Add Subject Modal (per program) */}
       {showAddModal && (
         <>
           <div className="modal-backdrop fade show" onClick={closeAddModal}></div>
@@ -373,14 +356,14 @@ function SubjectsManagement() {
                   </div>
                   <div className="modal-body">
                     <div className="mb-2">
-                      <label className="form-label">Class</label>
+                      <label className="form-label">Program</label>
                       <select
                         className="form-control"
-                        value={formData.class_id}
-                        onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
+                        value={addFormData.program_id}
+                        onChange={(e) => setAddFormData({ ...addFormData, program_id: e.target.value })}
                         required
                       >
-                        <option value="">Select Class</option>
+                        <option value="">Select Program</option>
                         {classes.map((cls) => (
                           <option key={cls.id} value={cls.id}>
                             {cls.section} - {cls.level} - {cls.course}
@@ -393,21 +376,53 @@ function SubjectsManagement() {
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.subject_name}
-                        onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })}
+                        value={addFormData.subject_name}
+                        onChange={(e) => setAddFormData({ ...addFormData, subject_name: e.target.value })}
                         required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Subject Code</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={addFormData.subject_code}
+                        onChange={(e) => setAddFormData({ ...addFormData, subject_code: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Units</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={addFormData.units}
+                        onChange={(e) => setAddFormData({ ...addFormData, units: e.target.value })}
+                        required
+                        min="0"
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Year Level</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={addFormData.year_level}
+                        onChange={(e) => setAddFormData({ ...addFormData, year_level: e.target.value })}
+                        min="1"
                       />
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Semester</label>
                       <select
                         className="form-control"
-                        value={formData.semester}
-                        onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+                        value={addFormData.semester}
+                        onChange={(e) => setAddFormData({ ...addFormData, semester: e.target.value })}
                         required
                       >
-                        <option value="1">First</option>
-                        <option value="2">Second</option>
+                        <option value="1st">1st Semester</option>
+                        <option value="2nd">2nd Semester</option>
+                        <option value="Summer">Summer</option>
                       </select>
                     </div>
                   </div>
@@ -440,14 +455,14 @@ function SubjectsManagement() {
                   </div>
                   <div className="modal-body">
                     <div className="mb-2">
-                      <label className="form-label">Class</label>
+                      <label className="form-label">Program</label>
                       <select
                         className="form-control"
-                        value={formData.class_id}
-                        onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
+                        value={formData.program_id}
+                        onChange={(e) => setFormData({ ...formData, program_id: e.target.value })}
                         required
                       >
-                        <option value="">Select Class</option>
+                        <option value="">Select Program</option>
                         {classes.map((cls) => (
                           <option key={cls.id} value={cls.id}>
                             {cls.section} - {cls.level} - {cls.course}
@@ -466,6 +481,37 @@ function SubjectsManagement() {
                       />
                     </div>
                     <div className="mb-2">
+                      <label className="form-label">Subject Code</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.subject_code}
+                        onChange={(e) => setFormData({ ...formData, subject_code: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Units</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.units}
+                        onChange={(e) => setFormData({ ...formData, units: e.target.value })}
+                        required
+                        min="0"
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Year Level</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={formData.year_level}
+                        onChange={(e) => setFormData({ ...formData, year_level: e.target.value })}
+                        min="1"
+                      />
+                    </div>
+                    <div className="mb-2">
                       <label className="form-label">Semester</label>
                       <select
                         className="form-control"
@@ -473,8 +519,9 @@ function SubjectsManagement() {
                         onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
                         required
                       >
-                        <option value="1">First</option>
-                        <option value="2">Second</option>
+                        <option value="1st">1st Semester</option>
+                        <option value="2nd">2nd Semester</option>
+                        <option value="Summer">Summer</option>
                       </select>
                     </div>
                   </div>
