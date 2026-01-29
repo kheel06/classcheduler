@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class DatabaseController extends Controller
 {
@@ -23,7 +25,7 @@ class DatabaseController extends Controller
      */
     private function resolveTable(string $table): string
     {
-        // Default to identity mapping. 
+        // Default to identity mapping.
         // If 'class' table exists in DB, use it directly.
         return $table;
     }
@@ -37,7 +39,7 @@ class DatabaseController extends Controller
     {
         $table = $request->input('table');
         $conditions = $request->input('conditions', []);
-        
+
         // Convert conditions to array if it's an object
         if (is_object($conditions)) {
             $conditions = (array) $conditions;
@@ -47,31 +49,47 @@ class DatabaseController extends Controller
             // ✅ Special case: login (email + password)
             if ($table === 'users' && !empty($conditions['email']) && !empty($conditions['password'])) {
                 $email = trim($conditions['email']);
-                $password = md5(trim($conditions['password']));
+                $plainPassword = trim($conditions['password']);
 
-                // Query user directly
-                $user = DB::selectOne("SELECT * FROM users WHERE email = ? AND password = ?", [$email, $password]);
-                
+                // Fetch user by email first, then verify password (supports bcrypt + legacy md5)
+                $user = DB::selectOne("SELECT * FROM users WHERE email = ? LIMIT 1", [$email]);
+
                 if (!$user) {
                     // Try to find user by email only for debugging
-                    $userByEmail = DB::selectOne("SELECT * FROM users WHERE email = ?", [$email]);
-                    if ($userByEmail) {
-                        // User exists but password doesn't match
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Invalid password',
-                            'data'    => [],
-                        ]);
-                    }
                     return response()->json([
                         'success' => false,
                         'message' => 'User not found',
                         'data'    => [],
                     ]);
                 }
-                
+
                 // Convert stdClass to array for easier manipulation
                 $user = (array) $user;
+
+                $storedPassword = (string) ($user['password'] ?? '');
+                $bcryptOk = false;
+                try {
+                    $bcryptOk = Hash::check($plainPassword, $storedPassword);
+                } catch (\Throwable $e) {
+                    // If the stored password is a legacy hash (e.g. md5), Hash::check can throw.
+                    $bcryptOk = false;
+                }
+                $md5Ok = (md5($plainPassword) === $storedPassword);
+
+                if (!$bcryptOk && !$md5Ok) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid password',
+                        'data'    => [],
+                    ]);
+                }
+
+                // If legacy MD5 matched, upgrade to bcrypt immediately.
+                if ($md5Ok && !$bcryptOk && !empty($user['id'])) {
+                    DB::table('users')->where('id', $user['id'])->update([
+                        'password' => Hash::make($plainPassword),
+                    ]);
+                }
 
                 // Password matches - login successful
                 unset($user['password']);
@@ -87,7 +105,7 @@ class DatabaseController extends Controller
                     );
                 } catch (\Exception $e) {
                     // Log action failed, but continue with login
-                    \Log::warning('Log action failed: ' . $e->getMessage());
+                    Log::warning('Log action failed: ' . $e->getMessage());
                 }
 
                 return response()->json([
@@ -164,7 +182,7 @@ class DatabaseController extends Controller
 
             // 🔒 Hash password if present
             if (isset($data['password'])) {
-                $data['password'] = md5($data['password']);
+                $data['password'] = Hash::make($data['password']);
             }
 
             // Prevent accidental insertion of primary key value
@@ -297,7 +315,7 @@ class DatabaseController extends Controller
             }
 
             if (isset($data['password'])) {
-                $data['password'] = md5($data['password']);
+                $data['password'] = Hash::make($data['password']);
             }
 
             if ($request->hasFile('file')) {

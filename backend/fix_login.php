@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 require __DIR__ . '/vendor/autoload.php';
 
@@ -11,9 +12,9 @@ $kernel->bootstrap();
 
 try {
     $password = 'Password_1234';
-    $hashedPassword = md5($password);
+    $hashedPassword = Hash::make($password);
 
-    echo "Updating passwords to: $password (MD5: $hashedPassword)\n";
+    echo "Updating passwords to: $password (bcrypt)\n";
 
     // Update admin@gmail.com
     $updatedAdmin = DB::table('users')->where('email', 'admin@gmail.com')->update(['password' => $hashedPassword]);

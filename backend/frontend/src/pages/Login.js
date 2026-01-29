@@ -42,16 +42,17 @@ function Login() {
     if (email.trim() !== "" && password.trim() !== "") {
       try {
         setLoading(true);
-        const response = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const response = await fetch(process.env.REACT_APP_API_URL + "login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "users", conditions: { email, password } }),
+          body: JSON.stringify({ email, password }),
         });
 
         const result = await response.json();
-        if (result.data && result.data.length > 0) {
-          Object.entries(result.data[0]).forEach(([key, value]) => {
-            // don't store null/undefined as the literal string "null"; normalize to empty string for missing values
+
+        if (response.ok && result.success) {
+          const userData = result.data[0]; // Backend returns array to match old expectations
+          Object.entries(userData).forEach(([key, value]) => {
             if (value === null || value === undefined) {
               sessionStorage.setItem(key, '');
             } else {
@@ -61,20 +62,8 @@ function Login() {
           sessionStorage.setItem("failedAttempts", "0");
           sessionStorage.removeItem("lockoutUntil");
 
-          await fetch(process.env.REACT_APP_API_URL + "insert", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              table: "logs",
-              data: {
-                user_id: result.data[0].id,
-                action: "login",
-                table_name: "users",
-                record_id: result.data[0].id,
-                message: `User ${result.data[0].email} logged in successfully`,
-              },
-            }),
-          });
+          // Audit log is now handled by backend
+
 
           // successful login -> redirect (no need to explicitly set loading false before unload)
           window.location.href = "/";
@@ -125,7 +114,7 @@ function Login() {
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100%', fontFamily: "Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" }}>
       <div style={{ flex: '1 1 50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', padding: '2rem' }}>
-  <div style={{ maxWidth: '380px', width: '100%' }}>
+        <div style={{ maxWidth: '380px', width: '100%' }}>
           <div className="text-center mb-4"><img src="/logo.png" alt="Logo" style={{ width: '120px' }} /><h2 className="mt-3 fw-bold login-heading">Sign in</h2></div>
           <Form onSubmit={handleLogin}>
             <Form.Group className="mb-3">

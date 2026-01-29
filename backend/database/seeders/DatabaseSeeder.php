@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
             'first_name' => 'Super',
             'last_name' => 'Admin',
             'name' => 'Super Admin',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('Password_1234'),
             'role' => 'SuperAdmin', // UI maps this to Manager
             'department' => 'CCS'
         ]);
@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
             'first_name' => 'Admin',
             'last_name' => 'Staff',
             'name' => 'Admin Staff',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('Password_1234'),
             'role' => 'Admin', // UI maps this to Staff
             'department' => 'CCS'
         ]);
@@ -50,7 +50,7 @@ class DatabaseSeeder extends Seeder
                 'first_name' => $t['first_name'],
                 'last_name' => $t['last_name'],
                 'name' => $t['name'],
-                'password' => bcrypt('password'),
+                'password' => bcrypt('Password_1234'),
                 'role' => 'Teacher',
                 'department' => 'CCS'
             ]);
@@ -73,14 +73,30 @@ class DatabaseSeeder extends Seeder
 
         // 3. Subjects
         $subjects = [
-            ['subject_code' => 'CC101', 'subject_name' => 'Introduction to Computing', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
-            ['subject_code' => 'CC102', 'subject_name' => 'Fundamentals of Programming', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
-            ['subject_code' => 'CC103', 'subject_name' => 'Intermediate Programming', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
-            ['subject_code' => 'DS101', 'subject_name' => 'Data Structures and Algorithms', 'units' => 3, 'year_level' => 2, 'semester' => '1st', 'program_id' => 1],
-            ['subject_code' => 'WS101', 'subject_name' => 'Web Systems and Technologies', 'units' => 3, 'year_level' => 2, 'semester' => '2nd', 'program_id' => 1],
-            ['subject_code' => 'NET101', 'subject_name' => 'Networking 1', 'units' => 3, 'year_level' => 3, 'semester' => '1st', 'program_id' => 1],
-            ['subject_code' => 'SIA101', 'subject_name' => 'Systems Integration and Architecture', 'units' => 3, 'year_level' => 3, 'semester' => '2nd', 'program_id' => 1],
-            ['subject_code' => 'CAP101', 'subject_name' => 'Capstone Project 1', 'units' => 3, 'year_level' => 4, 'semester' => '1st', 'program_id' => 1],
+            // 1st Year, 1st Sem
+            ['subject_code' => 'CC101', 'subject_name' => 'Purposive Communication', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            ['subject_code' => 'CC102', 'subject_name' => 'Mathematics in the Modern World', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            ['subject_code' => 'CC103', 'subject_name' => 'Understanding the Self', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            ['subject_code' => 'CC104', 'subject_name' => 'Philippine History', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            ['subject_code' => 'CC105', 'subject_name' => 'The Contemporary World', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            ['subject_code' => 'CC106', 'subject_name' => 'Physical Education 1', 'units' => 2, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            ['subject_code' => 'CC107', 'subject_name' => 'National Service Training Program 1 (NSTP 1)', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            ['subject_code' => 'CC108', 'subject_name' => 'Introduction to Computing', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            ['subject_code' => 'CC109', 'subject_name' => 'Living in the IT Era', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
+            
+            // 1st Year, 2nd Sem
+            ['subject_code' => 'CC201', 'subject_name' => 'Readings in Philippine History', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            ['subject_code' => 'CC202', 'subject_name' => 'Ethics', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            ['subject_code' => 'CC203', 'subject_name' => 'Science, Technology, and Society', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            ['subject_code' => 'CC204', 'subject_name' => 'Art Appreciation', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            ['subject_code' => 'CC205', 'subject_name' => 'Physical Education 2', 'units' => 2, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            ['subject_code' => 'CC206', 'subject_name' => 'National Service Training Program 2 (NSTP 2)', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            ['subject_code' => 'CC207', 'subject_name' => 'Programming 1 (Java Fundamentals)', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            ['subject_code' => 'CC208', 'subject_name' => 'The Life and Works of Rizal', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            ['subject_code' => 'CC209', 'subject_name' => 'Writing in the Discipline', 'units' => 3, 'year_level' => 1, 'semester' => '2nd', 'program_id' => 1],
+            
+            // Extra
+            ['subject_code' => 'FIL101', 'subject_name' => 'Filipino', 'units' => 3, 'year_level' => 1, 'semester' => '1st', 'program_id' => 1],
         ];
 
         foreach ($subjects as $s) {

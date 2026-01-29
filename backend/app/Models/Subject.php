@@ -12,7 +12,7 @@ class Subject extends Model
     protected $fillable = [
         'subject_name',
         'subject_code',
-        'program_id',
+        'class_id',
         'year_level',
         'semester',
         'units',

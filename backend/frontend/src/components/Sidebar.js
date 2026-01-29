@@ -55,18 +55,18 @@ const Sidebar = ({ collapsed }) => {
     // absolute URL
     if (p.startsWith('http') || p.startsWith('//')) return p;
     // /storage/... absolute path returned by Storage::url
-  if (p.startsWith('/storage/')) return (apiOrigin || window.location.origin) + p;
-  // storage/... (missing leading slash)
-  if (p.startsWith('storage/')) return (apiOrigin || window.location.origin) + '/' + p;
+    if (p.startsWith('/storage/')) return (apiOrigin || window.location.origin) + p;
+    // storage/... (missing leading slash)
+    if (p.startsWith('storage/')) return (apiOrigin || window.location.origin) + '/' + p;
     // common storage relative filenames produced by server (e.g. 'profiles/abc.png' or 'uploads/xyz.jpg')
     if (p.match(/^[a-z0-9_\-]+\/.+\.(png|jpe?g|gif|webp|svg)$/i)) {
-  return (apiOrigin || window.location.origin) + '/storage/' + p.replace(/^\//, '');
+      return (apiOrigin || window.location.origin) + '/storage/' + p.replace(/^\//, '');
     }
     // leading slash fallback
-  if (p.startsWith('/')) return (apiOrigin || window.location.origin) + p;
+    if (p.startsWith('/')) return (apiOrigin || window.location.origin) + p;
     // fallback: try to derive origin from REACT_APP_API_URL then append
     try {
-        if (apiOrigin) return apiOrigin + '/' + p.replace(/^\//, '');
+      if (apiOrigin) return apiOrigin + '/' + p.replace(/^\//, '');
     } catch (e) {
       // ignore
     }
@@ -135,8 +135,8 @@ const Sidebar = ({ collapsed }) => {
   // Helper to map role names to UI labels
   const getDisplayRole = (role) => {
     const r = role.toUpperCase();
-    if (r === "SUPERADMIN") return "Manager";
-    if (r === "ADMIN") return "Staff";
+    if (r === "SUPERADMIN") return "Super Admin";
+    if (r === "ADMIN") return "Admin";
     return role;
   };
 

@@ -14,8 +14,8 @@ class SubjectController extends Controller
     {
         $query = Subject::query();
 
-        if ($request->has('program_id')) {
-            $query->where('program_id', $request->program_id);
+        if ($request->has('class_id')) {
+            $query->where('class_id', $request->class_id);
         }
 
         if ($request->has('year_level')) {
@@ -46,7 +46,7 @@ class SubjectController extends Controller
         $validated = $request->validate([
             'subject_name' => 'required|string|max:255',
             'subject_code' => 'required|string|max:255|unique:subjects,subject_code',
-            'program_id' => 'nullable|integer',
+            'class_id' => 'nullable|integer',
             'year_level' => 'nullable|integer',
             'semester' => 'nullable|string|max:255',
             'units' => 'nullable|integer|min:0',
@@ -77,7 +77,7 @@ class SubjectController extends Controller
         $validated = $request->validate([
             'subject_name' => 'sometimes|required|string|max:255',
             'subject_code' => 'nullable|string|max:255|unique:subjects,subject_code,' . $id,
-            'program_id' => 'nullable|integer',
+            'class_id' => 'nullable|integer',
             'year_level' => 'nullable|integer',
             'semester' => 'nullable|string|max:255',
             'units' => 'nullable|integer|min:0',

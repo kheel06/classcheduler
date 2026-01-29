@@ -16,14 +16,15 @@ function SubjectsManagement() {
   const [classes, setClasses] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editSubjectId, setEditSubjectId] = useState(null);
   const [deleteSubjectId, setDeleteSubjectId] = useState(null);
 
 
-  // Matches DB columns: program_id, subject_name, subject_code, year_level, semester, units
+  // Matches DB columns: class_id, subject_name, subject_code, year_level, semester, units
   const [formData, setFormData] = useState({
-    program_id: "",
+    class_id: "",
     subject_name: "",
     subject_code: "",
     year_level: "",
@@ -32,7 +33,7 @@ function SubjectsManagement() {
   });
 
   const [addFormData, setAddFormData] = useState({
-    program_id: "",
+    class_id: "",
     subject_name: "",
     subject_code: "",
     year_level: "",
@@ -80,7 +81,7 @@ function SubjectsManagement() {
   // Add subject (for currently viewed program)
   const openAddSubjectModal = () => {
     setAddFormData({
-      program_id: "",
+      class_id: "",
       subject_name: "",
       subject_code: "",
       year_level: "",
@@ -99,7 +100,7 @@ function SubjectsManagement() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          program_id: addFormData.program_id ? Number(addFormData.program_id) : null,
+          class_id: addFormData.class_id ? Number(addFormData.class_id) : null,
           subject_name: addFormData.subject_name,
           subject_code: addFormData.subject_code,
           year_level: addFormData.year_level ? Number(addFormData.year_level) : null,
@@ -107,7 +108,7 @@ function SubjectsManagement() {
           units: addFormData.units ? Number(addFormData.units) : 0,
         }),
       });
-      
+
       if (response.ok) {
         Swal.fire("Success", "Subject added successfully!", "success");
         fetchSubjects();
@@ -129,7 +130,7 @@ function SubjectsManagement() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          program_id: formData.program_id ? Number(formData.program_id) : null,
+          class_id: formData.class_id ? Number(formData.class_id) : null,
           subject_name: formData.subject_name,
           subject_code: formData.subject_code,
           year_level: formData.year_level ? Number(formData.year_level) : null,
@@ -137,7 +138,7 @@ function SubjectsManagement() {
           units: formData.units ? Number(formData.units) : 0,
         }),
       });
-      
+
       if (response.ok) {
         Swal.fire("Success", "Subject updated successfully!", "success");
         fetchSubjects();
@@ -157,7 +158,7 @@ function SubjectsManagement() {
       const response = await fetch(process.env.REACT_APP_API_URL + "subjects/" + deleteSubjectId, {
         method: "DELETE",
       });
-      
+
       if (response.ok) {
         Swal.fire("Deleted!", "Subject deleted successfully.", "success");
         fetchSubjects();
@@ -174,7 +175,7 @@ function SubjectsManagement() {
   const openEditModal = (id) => {
     const subj = subjects.find((s) => s.id === id);
     setFormData({
-      program_id: subj.program_id ? String(subj.program_id) : "",
+      class_id: subj.class_id ? String(subj.class_id) : "",
       subject_name: subj.subject_name || "",
       subject_code: subj.subject_code || "",
       year_level: subj.year_level ? String(subj.year_level) : "",
@@ -188,7 +189,22 @@ function SubjectsManagement() {
     setDeleteSubjectId(id);
     setShowDeleteModal(true);
   };
+  const openViewModal = (id) => {
+    const subj = subjects.find((s) => s.id === id);
+    setFormData({
+      class_id: subj.class_id ? String(subj.class_id) : "",
+      subject_name: subj.subject_name || "",
+      subject_code: subj.subject_code || "",
+      year_level: subj.year_level ? String(subj.year_level) : "",
+      semester: subj.semester ? String(subj.semester) : "1st",
+      units: subj.units ? String(subj.units) : "",
+    });
+    setEditSubjectId(id); // reusing this state or could create viewSubjectId
+    setShowViewModal(true);
+  };
+
   const closeEditModal = () => setShowEditModal(false);
+  const closeViewModal = () => setShowViewModal(false);
   const closeDeleteModal = () => setShowDeleteModal(false);
 
   // Dark mode/sidebar
@@ -213,10 +229,10 @@ function SubjectsManagement() {
       width: "70px",
     },
     {
-      name: "Program",
+      name: "Class",
       selector: (row) => {
-        const p = classes.find((c) => c.id === row.program_id);
-        return p ? `${p.section} - ${p.level} - ${p.course}` : (row.program_id ?? "-");
+        const p = classes.find((c) => c.id === row.class_id);
+        return p ? `${p.section} - ${p.level} - ${p.course}` : (row.class_id ?? "-");
       },
       sortable: true,
     },
@@ -245,10 +261,10 @@ function SubjectsManagement() {
     {
       name: "Semester",
       selector: (row) => {
-          if (row.semester === '1' || row.semester === '1st') return '1st Semester';
-          if (row.semester === '2' || row.semester === '2nd') return '2nd Semester';
-          if (row.semester === 'Summer') return 'Summer';
-          return row.semester || "-";
+        if (row.semester === '1' || row.semester === '1st') return '1st Semester';
+        if (row.semester === '2' || row.semester === '2nd') return '2nd Semester';
+        if (row.semester === 'Summer') return 'Summer';
+        return row.semester || "-";
       },
       sortable: true,
     },
@@ -257,18 +273,11 @@ function SubjectsManagement() {
       cell: (row) => (
         <div className="d-flex justify-content-center action-cell">
           <button
-            className="btn btn-sm btn-outline-primary icon-btn"
-            title="Edit"
-            onClick={() => openEditModal(row.id)}
+            className="btn btn-sm btn-outline-info icon-btn"
+            title="View"
+            onClick={() => openViewModal(row.id)}
           >
-            <i className="bi bi-pencil"></i>
-          </button>
-          <button
-            className="btn btn-sm btn-outline-danger icon-btn ms-2"
-            title="Delete"
-            onClick={() => openDeleteModal(row.id)}
-          >
-            <i className="bi bi-trash"></i>
+            <i className="bi bi-eye"></i>
           </button>
         </div>
       ),
@@ -286,7 +295,7 @@ function SubjectsManagement() {
     const q = filterText.toLowerCase();
     const semesterLabel = (s.semester || "").toString().toLowerCase();
     const programLabel = (() => {
-      const p = classes.find((c) => c.id === s.program_id);
+      const p = classes.find((c) => c.id === s.class_id);
       return p ? `${p.section} - ${p.level} - ${p.course}`.toLowerCase() : "";
     })();
     return (
@@ -356,14 +365,14 @@ function SubjectsManagement() {
                   </div>
                   <div className="modal-body">
                     <div className="mb-2">
-                      <label className="form-label">Program</label>
+                      <label className="form-label">Class</label>
                       <select
                         className="form-control"
-                        value={addFormData.program_id}
-                        onChange={(e) => setAddFormData({ ...addFormData, program_id: e.target.value })}
+                        value={addFormData.class_id}
+                        onChange={(e) => setAddFormData({ ...addFormData, class_id: e.target.value })}
                         required
                       >
-                        <option value="">Select Program</option>
+                        <option value="">Select Class</option>
                         {classes.map((cls) => (
                           <option key={cls.id} value={cls.id}>
                             {cls.section} - {cls.level} - {cls.course}
@@ -441,6 +450,57 @@ function SubjectsManagement() {
         </>
       )}
 
+      {/* View Modal */}
+      {showViewModal && (
+        <>
+          <div className="modal-backdrop fade show" onClick={closeViewModal}></div>
+          <div className="modal d-block" tabIndex="-1" role="dialog" onClick={closeViewModal}>
+            <div className="modal-dialog" role="document" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">View Subject</h5>
+                  <button type="button" className="btn-close" onClick={closeViewModal}></button>
+                </div>
+                <div className="modal-body">
+                  <div className="mb-2">
+                    <label className="form-label fw-bold">Class</label>
+                    <p>{(() => {
+                      const c = classes.find(c => String(c.id) === String(formData.class_id));
+                      return c ? `${c.section} - ${c.level} - ${c.course}` : formData.class_id;
+                    })()}</p>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label fw-bold">Subject Name</label>
+                    <p>{formData.subject_name}</p>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label fw-bold">Subject Code</label>
+                    <p>{formData.subject_code}</p>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label fw-bold">Units</label>
+                    <p>{formData.units}</p>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label fw-bold">Year Level</label>
+                    <p>{formData.year_level}</p>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label fw-bold">Semester</label>
+                    <p>{formData.semester}</p>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={closeViewModal}>
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Edit Modal */}
       {showEditModal && (
         <>
@@ -455,14 +515,14 @@ function SubjectsManagement() {
                   </div>
                   <div className="modal-body">
                     <div className="mb-2">
-                      <label className="form-label">Program</label>
+                      <label className="form-label">Class</label>
                       <select
                         className="form-control"
-                        value={formData.program_id}
-                        onChange={(e) => setFormData({ ...formData, program_id: e.target.value })}
+                        value={formData.class_id}
+                        onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
                         required
                       >
-                        <option value="">Select Program</option>
+                        <option value="">Select Class</option>
                         {classes.map((cls) => (
                           <option key={cls.id} value={cls.id}>
                             {cls.section} - {cls.level} - {cls.course}

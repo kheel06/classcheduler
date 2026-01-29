@@ -25,6 +25,7 @@ function UsersManagement() {
   // Form: first_name, last_name, email, role, password, profile
   const [formData, setFormData] = useState({
     first_name: "",
+    middle_name: "",
     last_name: "",
     email: "",
     role: "",
@@ -108,245 +109,246 @@ function UsersManagement() {
     fetchUsers();
   }, []);
 
- // ✅ Add User
- const validateAddForm = () => {
-   const errors = {};
-   if (!formData.first_name || formData.first_name.trim() === '') errors.first_name = 'First name is required.';
-   if (!formData.last_name || formData.last_name.trim() === '') errors.last_name = 'Last name is required.';
-   if (!formData.email || formData.email.trim() === '') errors.email = 'Email is required.';
-   else {
-     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-     if (!emailRegex.test(formData.email)) errors.email = 'Please enter a valid email address.';
-     else if (users.some((u) => u.email && u.email.toLowerCase() === formData.email.toLowerCase())) errors.email = 'A user with this email already exists.';
-   }
-   if (!formData.role || formData.role.trim() === '') errors.role = 'Role is required.';
-   if (!formData.password || formData.password.trim() === '') errors.password = 'Password is required.';
-   else {
-     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/;
-     if (!strongPasswordRegex.test(formData.password)) errors.password = 'Password must be at least 8 characters and include uppercase, lowercase, number, and special symbol.';
-   }
-   if (formData.profile && typeof formData.profile !== 'string') {
-     const file = formData.profile;
-     if (!file.type.startsWith('image/')) errors.profile = 'Profile must be an image file.';
-     const maxSize = 2 * 1024 * 1024;
-     if (file.size > maxSize) errors.profile = 'Profile image must be less than 2MB.';
-   }
-   return errors;
- };
+  // ✅ Add User
+  const validateAddForm = () => {
+    const errors = {};
+    if (!formData.first_name || formData.first_name.trim() === '') errors.first_name = 'First name is required.';
+    if (!formData.last_name || formData.last_name.trim() === '') errors.last_name = 'Last name is required.';
+    if (!formData.email || formData.email.trim() === '') errors.email = 'Email is required.';
+    else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) errors.email = 'Please enter a valid email address.';
+      else if (users.some((u) => u.email && u.email.toLowerCase() === formData.email.toLowerCase())) errors.email = 'A user with this email already exists.';
+    }
+    if (!formData.role || formData.role.trim() === '') errors.role = 'Role is required.';
+    if (!formData.password || formData.password.trim() === '') errors.password = 'Password is required.';
+    else {
+      const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/;
+      if (!strongPasswordRegex.test(formData.password)) errors.password = 'Password must be at least 8 characters and include uppercase, lowercase, number, and special symbol.';
+    }
+    if (formData.profile && typeof formData.profile !== 'string') {
+      const file = formData.profile;
+      if (!file.type.startsWith('image/')) errors.profile = 'Profile must be an image file.';
+      const maxSize = 2 * 1024 * 1024;
+      if (file.size > maxSize) errors.profile = 'Profile image must be less than 2MB.';
+    }
+    return errors;
+  };
 
- useEffect(() => {
-   const errs = validateAddForm();
-   setAddErrors(errs);
-   setIsAddValid(Object.keys(errs).length === 0);
- }, [formData, users]);
+  useEffect(() => {
+    const errs = validateAddForm();
+    setAddErrors(errs);
+    setIsAddValid(Object.keys(errs).length === 0);
+  }, [formData, users]);
 
- const handleAddUser = async (e) => {
-   e.preventDefault();
-   const errs = validateAddForm();
-   setAddErrors(errs);
-   if (Object.keys(errs).length > 0) return; // inline validation will show messages
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    const errs = validateAddForm();
+    setAddErrors(errs);
+    if (Object.keys(errs).length > 0) return; // inline validation will show messages
 
-   try {
-     let profileUrl = '';
-     if (formData.profile) {
-       const fd = new FormData();
-       fd.append('file', formData.profile);
-       const uploadRes = await fetch(process.env.REACT_APP_API_URL + 'upload', {
-         method: 'POST',
-         body: fd,
-       });
-      const uploadData = await uploadRes.json();
-      console.log('Users.js: upload response (add)', uploadData);
-      if (uploadData && uploadData.success && uploadData.paths) {
-        const paths = uploadData.paths;
-        if (Array.isArray(paths) && paths.length > 0) {
-          profileUrl = paths[0];
-        } else if (paths.file) {
-          profileUrl = Array.isArray(paths.file) ? paths.file[0] : paths.file;
-        } else {
-          const keys = Object.keys(paths);
-          if (keys.length > 0) {
-            const val = paths[keys[0]];
-            profileUrl = Array.isArray(val) ? val[0] : val;
+    try {
+      let profileUrl = '';
+      if (formData.profile) {
+        const fd = new FormData();
+        fd.append('file', formData.profile);
+        const uploadRes = await fetch(process.env.REACT_APP_API_URL + 'upload', {
+          method: 'POST',
+          body: fd,
+        });
+        const uploadData = await uploadRes.json();
+        console.log('Users.js: upload response (add)', uploadData);
+        if (uploadData && uploadData.success && uploadData.paths) {
+          const paths = uploadData.paths;
+          if (Array.isArray(paths) && paths.length > 0) {
+            profileUrl = paths[0];
+          } else if (paths.file) {
+            profileUrl = Array.isArray(paths.file) ? paths.file[0] : paths.file;
+          } else {
+            const keys = Object.keys(paths);
+            if (keys.length > 0) {
+              const val = paths[keys[0]];
+              profileUrl = Array.isArray(val) ? val[0] : val;
+            }
           }
+          if (!profileUrl) console.warn('Users.js: could not derive uploaded file path (add)', uploadData);
+        } else {
+          console.warn('Users.js: upload did not return expected paths structure (add)', uploadData);
         }
-        if (!profileUrl) console.warn('Users.js: could not derive uploaded file path (add)', uploadData);
-      } else {
-        console.warn('Users.js: upload did not return expected paths structure (add)', uploadData);
       }
-     }
 
-     // Insert user
-     const response = await fetch(process.env.REACT_APP_API_URL + 'insert', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({
-         table: 'users',
-         data: {
-           ...formData,
-           profile: profileUrl,
-         },
-       }),
-     });
-
-     const result = await response.json();
-     if (result.success) {
-       Swal.fire('Success', 'User added successfully!', 'success');
-       // Refetch users
-       const res = await fetch(process.env.REACT_APP_API_URL + 'select', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ table: 'users' }),
-       });
-       const data = await res.json();
-       setUsers(data.data || []);
-       closeAddModal();
-     } else {
-       Swal.fire('Error', result.message || 'Failed to add user.', 'error');
-     }
-   } catch (error) {
-     Swal.fire('Error', 'Failed to add user.', 'error');
-   }
- };
-
-// ✅ Edit User
-const handleEditUser = async (e) => {
-  e.preventDefault();
-  try {
-    let profileUrl = formData.profile;
-
-    // ✅ Upload profile if changed (Blob, not string)
-    if (formData.profile && typeof formData.profile !== "string") {
-      const fd = new FormData();
-      fd.append("file", formData.profile);
-      const uploadRes = await fetch(process.env.REACT_APP_API_URL + "upload", {
-        method: "POST",
-        body: fd,
+      // Insert user
+      const response = await fetch(process.env.REACT_APP_API_URL + 'insert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: 'users',
+          data: {
+            ...formData,
+            profile: profileUrl,
+          },
+        }),
       });
-      const uploadData = await uploadRes.json();
-      console.log('Users.js: upload response (edit)', uploadData);
-      if (uploadData && uploadData.success && uploadData.paths) {
-        const paths = uploadData.paths;
-        if (Array.isArray(paths) && paths.length > 0) {
-          profileUrl = paths[0];
-        } else if (paths.file) {
-          profileUrl = Array.isArray(paths.file) ? paths.file[0] : paths.file;
-        } else {
-          const keys = Object.keys(paths);
-          if (keys.length > 0) {
-            const val = paths[keys[0]];
-            profileUrl = Array.isArray(val) ? val[0] : val;
-          }
-        }
-        if (!profileUrl) console.warn('Users.js: could not derive uploaded file path (edit)', uploadData);
+
+      const result = await response.json();
+      if (result.success) {
+        Swal.fire('Success', 'User added successfully!', 'success');
+        // Refetch users
+        const res = await fetch(process.env.REACT_APP_API_URL + 'select', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: 'users' }),
+        });
+        const data = await res.json();
+        setUsers(data.data || []);
+        closeAddModal();
       } else {
-        console.warn('Users.js: upload did not return expected paths structure (edit)', uploadData);
+        Swal.fire('Error', result.message || 'Failed to add user.', 'error');
       }
+    } catch (error) {
+      Swal.fire('Error', 'Failed to add user.', 'error');
     }
+  };
 
-    // ✅ Build update data
-    const updateData = {
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      email: formData.email,
-      role: formData.role,
-      profile: profileUrl,
-    };
+  // ✅ Edit User
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    try {
+      let profileUrl = formData.profile;
 
-    // ✅ Validate and include password only if provided
-    if (formData.password && formData.password.trim() !== "") {
-      const strongPasswordRegex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/;
-
-      if (!strongPasswordRegex.test(formData.password)) {
-        Swal.fire(
-          "Error",
-          "Password must be at least 8 characters and include uppercase, lowercase, number, and special symbol.",
-          "error"
-        );
-        return;
+      // ✅ Upload profile if changed (Blob, not string)
+      if (formData.profile && typeof formData.profile !== "string") {
+        const fd = new FormData();
+        fd.append("file", formData.profile);
+        const uploadRes = await fetch(process.env.REACT_APP_API_URL + "upload", {
+          method: "POST",
+          body: fd,
+        });
+        const uploadData = await uploadRes.json();
+        console.log('Users.js: upload response (edit)', uploadData);
+        if (uploadData && uploadData.success && uploadData.paths) {
+          const paths = uploadData.paths;
+          if (Array.isArray(paths) && paths.length > 0) {
+            profileUrl = paths[0];
+          } else if (paths.file) {
+            profileUrl = Array.isArray(paths.file) ? paths.file[0] : paths.file;
+          } else {
+            const keys = Object.keys(paths);
+            if (keys.length > 0) {
+              const val = paths[keys[0]];
+              profileUrl = Array.isArray(val) ? val[0] : val;
+            }
+          }
+          if (!profileUrl) console.warn('Users.js: could not derive uploaded file path (edit)', uploadData);
+        } else {
+          console.warn('Users.js: upload did not return expected paths structure (edit)', uploadData);
+        }
       }
 
-      updateData.password = formData.password;
-    }
+      // ✅ Build update data
+      const updateData = {
+        first_name: formData.first_name,
+        middle_name: formData.middle_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        role: formData.role,
+        profile: profileUrl,
+      };
 
-    // ✅ Update request
-    const response = await fetch(process.env.REACT_APP_API_URL + "update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        table: "users",
-        conditions: { id: editUserId },
-        data: updateData,
-      }),
-    });
+      // ✅ Validate and include password only if provided
+      if (formData.password && formData.password.trim() !== "") {
+        const strongPasswordRegex =
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/;
 
-    const result = await response.json();
-    console.log('Users.js: update response', result);
-    // Treat explicit success
-    if (result.success) {
-      Swal.fire("Success", "User updated successfully!", "success");
-      // Refetch users
-      const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+        if (!strongPasswordRegex.test(formData.password)) {
+          Swal.fire(
+            "Error",
+            "Password must be at least 8 characters and include uppercase, lowercase, number, and special symbol.",
+            "error"
+          );
+          return;
+        }
+
+        updateData.password = formData.password;
+      }
+
+      // ✅ Update request
+      const response = await fetch(process.env.REACT_APP_API_URL + "update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table: "users" }),
+        body: JSON.stringify({
+          table: "users",
+          conditions: { id: editUserId },
+          data: updateData,
+        }),
       });
-      const data = await res.json();
-      console.log('Users.js: refreshed users after update', data);
-      setUsers(data.data || []);
-      // If the edited user is the currently logged-in user, update sessionStorage
-      try {
-        const currentEmail = sessionStorage.getItem('email');
-        if (currentEmail) {
-          const updated = (data.data || []).find(u => u.id === editUserId || (u.email && u.email === updateData.email));
-          if (updated && updated.email === currentEmail) {
-            // update relevant sessionStorage keys so account/profile views refresh
-            sessionStorage.setItem('first_name', updated.first_name || '');
-            sessionStorage.setItem('last_name', updated.last_name || '');
-            sessionStorage.setItem('email', updated.email || '');
-            sessionStorage.setItem('profile', updated.profile || '');
-            console.log('Users.js: updated sessionStorage for current user', updated.profile);
+
+      const result = await response.json();
+      console.log('Users.js: update response', result);
+      // Treat explicit success
+      if (result.success) {
+        Swal.fire("Success", "User updated successfully!", "success");
+        // Refetch users
+        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ table: "users" }),
+        });
+        const data = await res.json();
+        console.log('Users.js: refreshed users after update', data);
+        setUsers(data.data || []);
+        // If the edited user is the currently logged-in user, update sessionStorage
+        try {
+          const currentEmail = sessionStorage.getItem('email');
+          if (currentEmail) {
+            const updated = (data.data || []).find(u => u.id === editUserId || (u.email && u.email === updateData.email));
+            if (updated && updated.email === currentEmail) {
+              // update relevant sessionStorage keys so account/profile views refresh
+              sessionStorage.setItem('first_name', updated.first_name || '');
+              sessionStorage.setItem('last_name', updated.last_name || '');
+              sessionStorage.setItem('email', updated.email || '');
+              sessionStorage.setItem('profile', updated.profile || '');
+              console.log('Users.js: updated sessionStorage for current user', updated.profile);
+            }
           }
+        } catch (e) {
+          console.warn('Users.js: failed to update sessionStorage after edit', e);
         }
-      } catch (e) {
-        console.warn('Users.js: failed to update sessionStorage after edit', e);
+        closeEditModal();
+      } else if (result.message && typeof result.message === 'string' && result.message.toLowerCase().includes('no records updated')) {
+        // Backend reported zero rows affected. This is not fatal — it usually
+        // means the submitted data matched existing values. Treat as a soft
+        // success so the UI doesn't show an error when nothing changed.
+        Swal.fire("Notice", "No changes were made.", "info");
+        // Still refresh list to ensure UI is up-to-date
+        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ table: "users" }),
+        });
+        const data = await res.json();
+        console.log('Users.js: refreshed users after no-op update', data);
+        setUsers(data.data || []);
+        try {
+          const currentEmail = sessionStorage.getItem('email');
+          if (currentEmail) {
+            const updated = (data.data || []).find(u => u.id === editUserId || (u.email && u.email === updateData.email));
+            if (updated && updated.email === currentEmail) {
+              sessionStorage.setItem('first_name', updated.first_name || '');
+              sessionStorage.setItem('last_name', updated.last_name || '');
+              sessionStorage.setItem('email', updated.email || '');
+              sessionStorage.setItem('profile', updated.profile || '');
+            }
+          }
+        } catch (e) { /* ignore */ }
+        closeEditModal();
+      } else {
+        Swal.fire("Error", result.message || "Failed to update user.", "error");
       }
-      closeEditModal();
-    } else if (result.message && typeof result.message === 'string' && result.message.toLowerCase().includes('no records updated')) {
-      // Backend reported zero rows affected. This is not fatal — it usually
-      // means the submitted data matched existing values. Treat as a soft
-      // success so the UI doesn't show an error when nothing changed.
-      Swal.fire("Notice", "No changes were made.", "info");
-      // Still refresh list to ensure UI is up-to-date
-      const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table: "users" }),
-      });
-      const data = await res.json();
-      console.log('Users.js: refreshed users after no-op update', data);
-      setUsers(data.data || []);
-      try {
-        const currentEmail = sessionStorage.getItem('email');
-        if (currentEmail) {
-          const updated = (data.data || []).find(u => u.id === editUserId || (u.email && u.email === updateData.email));
-          if (updated && updated.email === currentEmail) {
-            sessionStorage.setItem('first_name', updated.first_name || '');
-            sessionStorage.setItem('last_name', updated.last_name || '');
-            sessionStorage.setItem('email', updated.email || '');
-            sessionStorage.setItem('profile', updated.profile || '');
-          }
-        }
-      } catch (e) { /* ignore */ }
-      closeEditModal();
-    } else {
-      Swal.fire("Error", result.message || "Failed to update user.", "error");
+    } catch (error) {
+      Swal.fire("Error", "Failed to update user.", "error");
     }
-  } catch (error) {
-    Swal.fire("Error", "Failed to update user.", "error");
-  }
-};
+  };
 
 
 
@@ -383,7 +385,7 @@ const handleEditUser = async (e) => {
 
   // Modal open/close
   const openAddModal = () => {
-    setFormData({ first_name: "", last_name: "", email: "", role: "", password: "", profile: null });
+    setFormData({ first_name: "", middle_name: "", last_name: "", email: "", role: "", password: "", profile: null });
     // reset preview
     if (addPreview) {
       URL.revokeObjectURL(addPreview);
@@ -396,11 +398,12 @@ const handleEditUser = async (e) => {
     const user = users.find((u) => u.id === id);
     // cleanup previous preview if it was an object URL
     if (editPreviewObject && editPreview) {
-      try { URL.revokeObjectURL(editPreview); } catch (err) {}
+      try { URL.revokeObjectURL(editPreview); } catch (err) { }
     }
     // set form data
     setFormData({
       first_name: user.first_name || "",
+      middle_name: user.middle_name || "",
       last_name: user.last_name || "",
       email: user.email || "",
       role: user.role || "",
@@ -432,14 +435,14 @@ const handleEditUser = async (e) => {
       }
     }
     setAddPreview(null);
-    setFormData({ first_name: "", last_name: "", email: "", role: "", password: "", profile: null });
+    setFormData({ first_name: "", middle_name: "", last_name: "", email: "", role: "", password: "", profile: null });
     setAddErrors({});
     setIsAddValid(false);
     setShowAddModal(false);
   };
   const closeEditModal = () => {
     if (editPreviewObject && editPreview) {
-      try { URL.revokeObjectURL(editPreview); } catch (err) {}
+      try { URL.revokeObjectURL(editPreview); } catch (err) { }
     }
     setEditPreview(null);
     setEditPreviewObject(false);
@@ -462,6 +465,7 @@ const handleEditUser = async (e) => {
   const filteredData = users.filter(
     (item) =>
       (item.first_name && item.first_name.toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.middle_name && item.middle_name.toLowerCase().includes(filterText.toLowerCase())) ||
       (item.last_name && item.last_name.toLowerCase().includes(filterText.toLowerCase())) ||
       (item.email && item.email.toLowerCase().includes(filterText.toLowerCase())) ||
       (item.role && item.role.toLowerCase().includes(filterText.toLowerCase()))
@@ -477,13 +481,18 @@ const handleEditUser = async (e) => {
     },
     {
       name: "Profile",
-      cell: (row) => <ProfileImage profile={row.profile} name={`${row.first_name || ''} ${row.last_name || ''}`} size={32} />,
+      cell: (row) => <ProfileImage profile={row.profile} name={`${row.first_name || ''} ${row.middle_name || ''} ${row.last_name || ''}`} size={32} />,
       center: true,
       width: "80px",
     },
     {
       name: "First Name",
       selector: (row) => row.first_name,
+      sortable: true,
+    },
+    {
+      name: "Middle Name",
+      selector: (row) => row.middle_name || "",
       sortable: true,
     },
     {
@@ -497,8 +506,18 @@ const handleEditUser = async (e) => {
       sortable: true,
     },
     {
+      name: "Department",
+      selector: (row) => row.department || "N/A",
+      sortable: true,
+    },
+    {
       name: "Role",
-      selector: (row) => row.role,
+      selector: (row) => {
+        const r = row.role ? row.role.toUpperCase() : "";
+        if (r === "SUPERADMIN") return "Super Admin";
+        if (r === "ADMIN") return "Admin"; // Or "Staff" if preferred, but keeping consistent with sidebar change to Admin if applicable, or existing user data.
+        return row.role;
+      },
       sortable: true,
     },
     {
@@ -532,9 +551,8 @@ const handleEditUser = async (e) => {
 
   return (
     <div
-      className={`d-flex min-vh-100 ${
-        darkMode ? "bg-dark text-white" : "bg-light"
-      } overflow-hidden`}
+      className={`d-flex min-vh-100 ${darkMode ? "bg-dark text-white" : "bg-light"
+        } overflow-hidden`}
     >
       <Sidebar collapsed={collapsed} />
       <div className={`d-flex flex-column flex-grow-1 main-content ${collapsed ? 'sidebar-collapsed' : ''}`}>
@@ -598,6 +616,15 @@ const handleEditUser = async (e) => {
                       {addErrors.first_name && <div className="text-danger small mt-1">{addErrors.first_name}</div>}
                     </div>
                     <div className="mb-2">
+                      <label className="form-label">Middle Name</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.middle_name}
+                        onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })}
+                      />
+                    </div>
+                    <div className="mb-2">
                       <label className="form-label">Last Name</label>
                       <input
                         type="text"
@@ -656,13 +683,13 @@ const handleEditUser = async (e) => {
                           if (file) {
                             // revoke previous preview
                             if (addPreview) {
-                              try { URL.revokeObjectURL(addPreview); } catch (err) {}
+                              try { URL.revokeObjectURL(addPreview); } catch (err) { }
                             }
                             setFormData({ ...formData, profile: file });
                             setAddPreview(URL.createObjectURL(file));
                           } else {
                             if (addPreview) {
-                              try { URL.revokeObjectURL(addPreview); } catch (err) {}
+                              try { URL.revokeObjectURL(addPreview); } catch (err) { }
                             }
                             setFormData({ ...formData, profile: null });
                             setAddPreview(null);
@@ -713,6 +740,15 @@ const handleEditUser = async (e) => {
                         value={formData.first_name}
                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                         required
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label">Middle Name</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.middle_name}
+                        onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })}
                       />
                     </div>
                     <div className="mb-2">
@@ -769,7 +805,7 @@ const handleEditUser = async (e) => {
                           if (file) {
                             // revoke previous preview if it was an object URL
                             if (editPreviewObject && editPreview) {
-                              try { URL.revokeObjectURL(editPreview); } catch (err) {}
+                              try { URL.revokeObjectURL(editPreview); } catch (err) { }
                             }
                             setFormData({ ...formData, profile: file });
                             setEditPreview(URL.createObjectURL(file));

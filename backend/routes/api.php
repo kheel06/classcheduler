@@ -4,6 +4,9 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\FileUploadController;
 use App\Http\Controllers\ScheduleController;
 
+// Auth Route
+Route::post('/login', [\App\Http\Controllers\AuthController::class, 'login']);
+
 Route::post('/upload', [FileUploadController::class, 'upload']);
 Route::post('/select', [DatabaseController::class, 'select']);
 Route::post('/insert', [DatabaseController::class, 'insert']);
