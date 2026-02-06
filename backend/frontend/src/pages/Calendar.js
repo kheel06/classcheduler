@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { useDarkMode } from "../hooks/useDarkMode";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import { apiFetch } from "../utils/api";
 import Footer from "../components/Footer";
 import MobileSidebar from "../components/MobileSidebar";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
@@ -40,7 +42,7 @@ const CustomToolbar = ({ label, onNavigate, onView }) => {
 };
 
 function CalendarPage() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -79,10 +81,10 @@ function CalendarPage() {
     const fetchData = async () => {
       try {
         const [usersRes, classesRes, roomsRes, subjectsRes] = await Promise.all([
-          fetch(process.env.REACT_APP_API_URL + "select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ table: "users" }) }),
-          fetch(process.env.REACT_APP_API_URL + "select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ table: "class" }) }),
-          fetch(process.env.REACT_APP_API_URL + "select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ table: "rooms" }) }),
-          fetch(process.env.REACT_APP_API_URL + "select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ table: "subjects" }) }),
+          apiFetch("select", { method: "POST", body: JSON.stringify({ table: "users" }) }),
+          apiFetch("select", { method: "POST", body: JSON.stringify({ table: "class" }) }),
+          apiFetch("select", { method: "POST", body: JSON.stringify({ table: "rooms" }) }),
+          apiFetch("select", { method: "POST", body: JSON.stringify({ table: "subjects" }) }),
         ]);
 
         const usersData = await usersRes.json();
@@ -106,7 +108,7 @@ function CalendarPage() {
 
   const fetchSchedules = async () => {
     try {
-      const res = await fetch(process.env.REACT_APP_API_URL + "schedules"); // New Endpoint
+      const res = await apiFetch("schedules");
       const data = await res.json();
       if (Array.isArray(data)) {
         setRawSchedules(data);
@@ -174,11 +176,6 @@ function CalendarPage() {
 
   }, [rawSchedules, currentDate, currentView]);
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
-  };
   const toggleSidebar = () => setCollapsed(!collapsed);
   const openMobileSidebar = () => setMobileSidebarOpen(true);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);
@@ -208,24 +205,15 @@ function CalendarPage() {
     };
 
     try {
-      let url = process.env.REACT_APP_API_URL + "schedules";
-      let method = "POST";
-
+      const endpoint = editScheduleId ? "schedules/" + editScheduleId : "schedules";
+      const method = editScheduleId ? "PUT" : "POST";
       if (editScheduleId) {
-        url += `/${editScheduleId}`;
-        method = "PUT";
-        // For edit, we only send one day (the original one) or handle bulk update?
-        // The current UI assumes editing a single schedule entry (which is one day).
-        // But the "Add" allows multiple days.
-        // For simplicity, Edit mode only updates the specific schedule ID.
-        // So we need to override the 'days' logic for Edit.
-        payload.day_of_week = formData.days[0]; // Take the first one if multiple selected, but UI should restrict.
+        payload.day_of_week = formData.days[0];
         delete payload.days;
       }
 
-      const res = await fetch(url, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
+      const res = await apiFetch(endpoint, {
+        method,
         body: JSON.stringify(payload)
       });
 
@@ -305,9 +293,7 @@ function CalendarPage() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
     try {
-      const res = await fetch(process.env.REACT_APP_API_URL + `schedules/${id}`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(`schedules/${id}`, { method: "DELETE" });
       if (res.ok) {
         Swal.fire("Deleted", "Schedule deleted.", "success");
         fetchSchedules();

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useDarkMode } from "../hooks/useDarkMode";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -8,7 +9,7 @@ import { useReactToPrint } from "react-to-print";
 
 function Reports() {
   const user = sessionStorage.getItem("user") || "Guest";
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -55,10 +56,9 @@ function Reports() {
         if (classesData.success) setClasses(classesData.data);
         if (roomsData.success) setRooms(roomsData.data);
         if (subjectsData.success) setSubjects(subjectsData.data);
-        if (Array.isArray(schedulesData)) {
-          setSchedules(schedulesData);
-          setFilteredSchedules(schedulesData);
-        }
+        const schedList = Array.isArray(schedulesData) ? schedulesData : (schedulesData?.data || []);
+        setSchedules(schedList);
+        setFilteredSchedules(schedList);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -97,23 +97,44 @@ function Reports() {
     documentTitle: "Schedule Report",
   });
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
-  };
   const toggleSidebar = () => setCollapsed(!collapsed);
   const openMobileSidebar = () => setMobileSidebarOpen(true);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);
 
+  const formatTime = (t) => {
+    if (t == null || t === '') return '—';
+    const s = String(t);
+    if (s.match(/^\d{2}:\d{2}/)) return s.substring(0, 5);
+    if (s.includes('T')) return s.split('T')[1]?.substring(0, 5) || '—';
+    return s.substring(0, 5) || '—';
+  };
+  const getClassLabel = (row) => {
+    const c = row.school_class || row.schoolClass;
+    if (!c) return '—';
+    const course = c.course || c.program?.program_name || '';
+    const level = c.level ?? '';
+    const section = c.section ?? '';
+    return [course, level && section ? `${level}-${section}` : ''].filter(Boolean).join(' ') || '—';
+  };
+  const getTeacherLabel = (row) => {
+    const t = row.teacher;
+    if (!t) return '—';
+    return t.name || [t.first_name, t.last_name].filter(Boolean).join(' ').trim() || t.email || '—';
+  };
+
   const columns = [
-    { name: "Day", selector: row => row.day_of_week, sortable: true, width: "100px" },
-    { name: "Time", selector: row => `${row.start_time?.substring(0, 5)} - ${row.end_time?.substring(0, 5)}`, sortable: true, width: "140px" },
-    { name: "Subject", selector: row => row.subject?.subject_code || '-', sortable: true },
-    { name: "Description", selector: row => row.subject?.subject_name || '-', sortable: true, wrap: true },
-    { name: "Room", selector: row => row.room ? `${row.room.room_code || ''} - ${row.room.room_name || ''}` : '-', sortable: true, width: "150px" },
-    { name: "Teacher", selector: row => row.teacher?.name || '-', sortable: true },
-    { name: "Class", selector: row => row.school_class ? `${row.school_class.course} ${row.school_class.level}-${row.school_class.section}` : '-', sortable: true },
+    { name: "Day", selector: row => row.day_of_week || '—', sortable: true, width: "100px" },
+    { name: "Time", selector: row => `${formatTime(row.start_time)} - ${formatTime(row.end_time)}`, sortable: true, width: "140px" },
+    { name: "Subject", selector: row => (row.subject?.subject_code || row.subject?.subject_name || '—'), sortable: true },
+    { name: "Description", selector: row => (row.subject?.subject_name || row.description || '—'), sortable: true, wrap: true },
+    { name: "Room", selector: row => {
+      const r = row.room;
+      if (!r) return '—';
+      const parts = [r.room_code, r.room_name].filter(Boolean);
+      return parts.length ? parts.join(' - ') : '—';
+    }, sortable: true, width: "150px" },
+    { name: "Teacher", selector: row => getTeacherLabel(row), sortable: true },
+    { name: "Class", selector: row => getClassLabel(row), sortable: true },
   ];
 
   const customStyles = {
@@ -150,14 +171,14 @@ function Reports() {
                 <label className="form-label small fw-bold">Teacher</label>
                 <select className="form-select form-select-sm" name="teacher_id" value={filters.teacher_id} onChange={handleFilterChange}>
                   <option value="">All Teachers</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  {users.map(u => <option key={u.id} value={u.id}>{u.name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email || `User ${u.id}`}</option>)}
                 </select>
               </div>
               <div className="col-md-2">
                 <label className="form-label small fw-bold">Room</label>
                 <select className="form-select form-select-sm" name="room_id" value={filters.room_id} onChange={handleFilterChange}>
                   <option value="">All Rooms</option>
-                  {rooms.map(r => <option key={r.id} value={r.id}>{r.room_number}</option>)}
+                  {rooms.map(r => <option key={r.id} value={r.id}>{r.room_code || r.room_number || r.room_name || `Room ${r.id}`}</option>)}
                 </select>
               </div>
               <div className="col-md-2">

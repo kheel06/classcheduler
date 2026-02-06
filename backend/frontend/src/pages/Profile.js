@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
+import { useDarkMode } from "../hooks/useDarkMode";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import { apiFetch } from "../utils/api";
 import Footer from "../components/Footer";
 import MobileSidebar from "../components/MobileSidebar";
 import Swal from "sweetalert2";
 
  function Profile() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -48,12 +50,6 @@ import Swal from "sweetalert2";
   useEffect(() => {
     setProfile(getProfileFromSession());
   }, []);
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
-  };
 
   const toggleSidebar = () => setCollapsed(!collapsed);
   const openMobileSidebar = () => setMobileSidebarOpen(true);
@@ -125,17 +121,14 @@ const handleSubmit = async (e) => {
     }
 
     // ✅ Send update request
-    const response = await fetch(process.env.REACT_APP_API_URL + "update", {
+    const response = await apiFetch("update", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({
         table: "users",
-        where: { id: profile.id },
+        conditions: { id: profile.id },
         data: updateData,
       }),
-    });
+    }, true);
 
     const result = await response.json();
     if (result.success) {
@@ -291,4 +284,4 @@ const handleSubmit = async (e) => {
   );
 }
 
-export default Profile; 
+export default Profile;

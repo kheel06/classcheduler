@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useDarkMode } from "../hooks/useDarkMode";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import { apiFetch } from "../utils/api";
 import Footer from "../components/Footer";
 import MobileSidebar from "../components/MobileSidebar";
 import DataTable from "react-data-table-component";
@@ -8,7 +10,7 @@ import Swal from "sweetalert2";
 
 function SubjectsManagement() {
   const user = sessionStorage.getItem("user") || "Guest";
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [filterText, setFilterText] = useState("");
@@ -50,9 +52,8 @@ function SubjectsManagement() {
 
   const fetchClasses = async () => {
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "select", {
+      const response = await apiFetch("select", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ table: "class" }),
       });
       const result = await response.json();
@@ -69,7 +70,7 @@ function SubjectsManagement() {
 
   const fetchSubjects = async () => {
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "subjects");
+      const response = await apiFetch("subjects");
       const data = await response.json();
       setSubjects(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -126,9 +127,8 @@ function SubjectsManagement() {
   const handleEditSubject = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "subjects/" + editSubjectId, {
+      const response = await apiFetch("subjects/" + editSubjectId, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           class_id: formData.class_id ? Number(formData.class_id) : null,
           subject_name: formData.subject_name,
@@ -155,9 +155,7 @@ function SubjectsManagement() {
   // Delete subject
   const handleDeleteSubject = async () => {
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "subjects/" + deleteSubjectId, {
-        method: "DELETE",
-      });
+      const response = await apiFetch("subjects/" + deleteSubjectId, { method: "DELETE" });
 
       if (response.ok) {
         Swal.fire("Deleted!", "Subject deleted successfully.", "success");
@@ -208,11 +206,6 @@ function SubjectsManagement() {
   const closeDeleteModal = () => setShowDeleteModal(false);
 
   // Dark mode/sidebar
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
-  };
   const toggleSidebar = () => setCollapsed(!collapsed);
   const openMobileSidebar = () => setMobileSidebarOpen(true);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);

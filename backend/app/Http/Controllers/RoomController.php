@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Room;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 
 class RoomController extends Controller
@@ -60,6 +61,7 @@ class RoomController extends Controller
         }
 
         $room = Room::create($validated);
+        AuditLogService::log('create', 'rooms', $room->id, "Created room {$room->room_code} ({$room->room_name})", null, $request, null, $validated);
 
         return response()->json($room, 201);
     }
@@ -90,7 +92,9 @@ class RoomController extends Controller
             'status' => 'nullable|in:Active,Inactive,Under Renovation',
         ]);
 
+        $oldValues = $room->toArray();
         $room->update($validated);
+        AuditLogService::log('update', 'rooms', $id, "Updated room {$room->room_code} ({$room->room_name})", null, $request, $oldValues, $validated);
 
         return response()->json($room);
     }
@@ -101,7 +105,10 @@ class RoomController extends Controller
     public function destroy(string $id)
     {
         $room = Room::findOrFail($id);
+        $roomCode = $room->room_code;
+        $roomName = $room->room_name;
         $room->delete();
+        AuditLogService::log('delete', 'rooms', $id, "Deleted room {$roomCode} ({$roomName})", null, request());
 
         return response()->json(['message' => 'Room deleted successfully']);
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Services\AuditLogService;
 
 class AuthController extends Controller
 {
@@ -49,15 +50,7 @@ class AuthController extends Controller
                 $userData = (array) $user;
                 unset($userData['password']);
 
-                // Logs
-                DB::table('logs')->insert([
-                    'user_id' => $user->id,
-                    'action' => 'login',
-                    'table_name' => 'users',
-                    'record_id' => $user->id,
-                    'message' => "User {$user->email} logged in successfully",
-                    'created_at' => now(),
-                ]);
+                AuditLogService::log('login', 'users', $user->id, "User {$user->email} logged in successfully", (int) $user->id, $request);
 
                 return response()->json([
                     'success' => true,

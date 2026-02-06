@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'masterlist' => [
+        'url' => env('MASTERLIST_API_URL', 'https://sisreg.jampzdev.com/api/getMasterlist.php'),
+        'key' => env('MASTERLIST_API_KEY', 'RegistrarAPIKeyPass'),
+    ],
+
+    'personalinfo' => [
+        'url' => env('PERSONALINFO_API_URL', 'https://sisreg.jampzdev.com/api/getpersonalinfo.php'),
+        'key' => env('MASTERLIST_API_KEY', 'RegistrarAPIKeyPass'), // Same key as masterlist
+    ],
+
 ];

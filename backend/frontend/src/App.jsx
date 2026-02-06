@@ -14,6 +14,7 @@ import Rooms from "./pages/Rooms";
 import Activity from "./pages/Logs";
 import Reports from "./pages/Reports";
 import Calendar from "./pages/Calendar";
+import Masterlist from "./pages/Masterlist";
 
 // ProtectedRoute component
 function ProtectedRoute({ children }) {
@@ -86,6 +87,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Subjects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="masterlist"
+          element={
+            <ProtectedRoute>
+              <Masterlist />
             </ProtectedRoute>
           }
         />

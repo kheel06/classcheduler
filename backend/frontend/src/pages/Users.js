@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useDarkMode } from "../hooks/useDarkMode";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import { apiFetch } from "../utils/api";
 import Footer from "../components/Footer";
 import MobileSidebar from "../components/MobileSidebar";
 import { default as DataTable } from "react-data-table-component";
@@ -11,7 +13,7 @@ const initialUsers = [];
 
 function UsersManagement() {
   const user = sessionStorage.getItem("user") || "Guest";
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [filterText, setFilterText] = useState("");
@@ -93,9 +95,8 @@ function UsersManagement() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const response = await apiFetch("select", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ table: "users" }),
         });
         const result = await response.json();
@@ -178,25 +179,20 @@ function UsersManagement() {
       }
 
       // Insert user
-      const response = await fetch(process.env.REACT_APP_API_URL + 'insert', {
+      const response = await apiFetch('insert', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           table: 'users',
-          data: {
-            ...formData,
-            profile: profileUrl,
-          },
+          data: { ...formData, profile: profileUrl },
         }),
-      });
+      }, true);
 
       const result = await response.json();
       if (result.success) {
         Swal.fire('Success', 'User added successfully!', 'success');
         // Refetch users
-        const res = await fetch(process.env.REACT_APP_API_URL + 'select', {
+        const res = await apiFetch('select', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ table: 'users' }),
         });
         const data = await res.json();
@@ -273,15 +269,14 @@ function UsersManagement() {
       }
 
       // ✅ Update request
-      const response = await fetch(process.env.REACT_APP_API_URL + "update", {
+      const response = await apiFetch("update", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           table: "users",
           conditions: { id: editUserId },
           data: updateData,
         }),
-      });
+      }, true);
 
       const result = await response.json();
       console.log('Users.js: update response', result);
@@ -289,9 +284,8 @@ function UsersManagement() {
       if (result.success) {
         Swal.fire("Success", "User updated successfully!", "success");
         // Refetch users
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const res = await apiFetch("select", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ table: "users" }),
         });
         const data = await res.json();
@@ -355,21 +349,19 @@ function UsersManagement() {
   // Delete user
   const handleDeleteUser = async () => {
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "delete", {
+      const response = await apiFetch("delete", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           table: "users",
           conditions: { id: deleteUserId },
         }),
-      });
+      }, true);
       const result = await response.json();
       if (result.success) {
         Swal.fire("Deleted!", "User deleted successfully.", "success");
         // Refetch users
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const res = await apiFetch("select", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ table: "users" }),
         });
         const data = await res.json();
@@ -451,11 +443,6 @@ function UsersManagement() {
   const closeDeleteModal = () => setShowDeleteModal(false);
 
   // Dark mode/sidebar
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
-  };
   const toggleSidebar = () => setCollapsed(!collapsed);
   const openMobileSidebar = () => setMobileSidebarOpen(true);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);

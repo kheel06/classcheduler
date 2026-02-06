@@ -7,6 +7,10 @@ use App\Http\Controllers\ScheduleController;
 // Auth Route
 Route::post('/login', [\App\Http\Controllers\AuthController::class, 'login']);
 
+// Audit Trail
+Route::get('/audit-trail', [\App\Http\Controllers\AuditTrailController::class, 'index']);
+Route::get('/audit-trail/actions', [\App\Http\Controllers\AuditTrailController::class, 'actions']);
+
 Route::post('/upload', [FileUploadController::class, 'upload']);
 Route::post('/select', [DatabaseController::class, 'select']);
 Route::post('/insert', [DatabaseController::class, 'insert']);
@@ -27,7 +31,9 @@ Route::get('/dashboard/sectioning-progress', [\App\Http\Controllers\DashboardCon
 Route::get('/dashboard/schedule-status', [\App\Http\Controllers\DashboardController::class, 'getScheduleStatus']);
 Route::get('/dashboard/user-roles', [\App\Http\Controllers\DashboardController::class, 'getUserRoles']);
 
-// Integration Routes (EMS/LMS)
+// Masterlist Integration (SIS/Registrar)
+Route::get('/masterlist', [\App\Http\Controllers\MasterlistController::class, 'index']);
+
 // Integration Routes (EMS/LMS)
 Route::post('/v1/sections', [\App\Http\Controllers\IntegrationController::class, 'pushSections']); // EMS Push
 Route::get('/schedules/student/{id}', [\App\Http\Controllers\IntegrationController::class, 'getStudentSchedule']); // LMS Pull

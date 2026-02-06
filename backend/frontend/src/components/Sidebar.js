@@ -90,6 +90,7 @@ const Sidebar = ({ collapsed }) => {
       items: [
         { label: "Programs", icon: "bi-journal", path: "/program" },
         { label: "Subjects", icon: "bi-book", path: "/subjects" },
+        { label: "Masterlist", icon: "bi-list-ul", path: "/masterlist" },
       ],
     },
     {

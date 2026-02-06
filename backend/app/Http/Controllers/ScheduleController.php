@@ -8,6 +8,7 @@ use App\Models\Subject;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Services\ScheduleConflictService;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -74,7 +75,7 @@ class ScheduleController extends Controller
                 if (!empty($conflicts)) {
                     $errors[$day] = $conflicts;
                     continue; // Skip creating this day if conflict exists
-                    // Or throw exception to rollback all? 
+                    // Or throw exception to rollback all?
                     // Usually user wants to know all conflicts.
                     // Let's collect errors and fail if any.
                 }
@@ -102,6 +103,10 @@ class ScheduleController extends Controller
             }
 
             DB::commit();
+            foreach ($createdSchedules as $s) {
+                $msg = "Created schedule: {$s->day_of_week} {$s->start_time}-{$s->end_time}";
+                AuditLogService::log('create', 'schedules', $s->id, $msg, null, $request, null, $s->toArray());
+            }
             return response()->json(['message' => 'Schedules created successfully', 'data' => $createdSchedules], 201);
 
         } catch (\Exception $e) {
@@ -143,13 +148,21 @@ class ScheduleController extends Controller
             ], 422);
         }
 
+        $oldValues = $schedule->toArray();
         $schedule->update($validated);
+        $msg = "Updated schedule ID {$id}: {$schedule->day_of_week} {$schedule->start_time}-{$schedule->end_time}";
+        AuditLogService::log('update', 'schedules', $id, $msg, null, $request, $oldValues, $validated);
 
         return response()->json(['message' => 'Schedule updated successfully', 'data' => $schedule]);
     }
 
     public function destroy($id)
     {
+        $schedule = Schedule::find($id);
+        if ($schedule) {
+            $msg = "Deleted schedule ID {$id}: {$schedule->day_of_week} {$schedule->start_time}-{$schedule->end_time}";
+            AuditLogService::log('delete', 'schedules', $id, $msg, null, request());
+        }
         Schedule::destroy($id);
         return response()->json(['message' => 'Schedule deleted successfully']);
     }

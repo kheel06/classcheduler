@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useDarkMode } from "../hooks/useDarkMode";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import MobileSidebar from "../components/MobileSidebar";
 import DataTable from "react-data-table-component";
+import { apiFetch } from "../utils/api";
 
-// Helper for date formatting
 function formatLoggedAt(dateStr) {
   if (!dateStr) return "";
   const date = new Date(dateStr);
@@ -15,118 +16,123 @@ function formatLoggedAt(dateStr) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hour12: true,
   };
-  // Format: July 24, 2024 05:12PM
-  const formatted = date.toLocaleString("en-US", options)
-    .replace(",", "") // Remove comma after day
-    .replace(/(\d{2}):(\d{2}) (\w{2})/, (m, h, min, ampm) => `${h}:${min}${ampm}`);
-  return formatted;
+  return date.toLocaleString("en-US", options)
+    .replace(",", "")
+    .replace(/(\d{2}):(\d{2}):(\d{2}) (\w{2})/, (m, h, min, sec, ampm) => `${h}:${min}:${sec}${ampm}`);
 }
 
 function LogsPage() {
   const user = sessionStorage.getItem("user") || "Guest";
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [filterText, setFilterText] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [logs, setLogs] = useState([]);
-  const [users, setUsers] = useState({}); // user_id -> first_name
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, per_page: 50 });
 
-  // Fetch logs
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "logs" }),
+  const fetchLogs = useCallback(async (page = 1) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", page);
+      params.set("per_page", "50");
+      if (filterText.trim()) params.set("search", filterText.trim());
+      if (actionFilter) params.set("action", actionFilter);
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+
+      const res = await apiFetch("audit-trail?" + params.toString());
+      const data = await res.json();
+
+      if (data.data) {
+        setLogs(data.data);
+        setPagination({
+          current_page: data.current_page,
+          last_page: data.last_page,
+          per_page: data.per_page,
+          total: data.total,
         });
-        const data = await res.json();
-        setLogs(data.data || []);
-      } catch {
+      } else {
         setLogs([]);
       }
-    };
-    fetchLogs();
-  }, []);
+    } catch {
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [filterText, actionFilter, dateFrom, dateTo]);
 
-  // Fetch users
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ table: "users" }),
-        });
-        const data = await res.json();
-        // Map user_id to first_name
-        const map = {};
-        (data.data || []).forEach((u) => {
-          map[u.id] = u.first_name;
-        });
-        setUsers(map);
-      } catch {
-        setUsers({});
-      }
-    };
-    fetchUsers();
-  }, []);
+    fetchLogs(1);
+  }, [fetchLogs]);
 
-  // Dark mode/sidebar
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
+  const handleSearch = (e) => {
+    e?.preventDefault();
+    fetchLogs(1);
   };
+
+  const handlePageChange = (page) => {
+    fetchLogs(page);
+  };
+
   const toggleSidebar = () => setCollapsed(!collapsed);
   const openMobileSidebar = () => setMobileSidebarOpen(true);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);
   const sidebarWidth = collapsed ? 80 : 250;
 
-  // Filtered data
-  const filteredData = logs.filter(
-    (item) =>
-      (users[item.user_id] && users[item.user_id].toLowerCase().includes(filterText.toLowerCase())) ||
-      (item.action && item.action.toLowerCase().includes(filterText.toLowerCase())) ||
-      (item.table_name && item.table_name.toLowerCase().includes(filterText.toLowerCase())) ||
-      (item.record_id && String(item.record_id).includes(filterText)) ||
-      (item.message && item.message.toLowerCase().includes(filterText.toLowerCase())) ||
-      (item.created_at && formatLoggedAt(item.created_at).toLowerCase().includes(filterText.toLowerCase()))
-  );
-
   const columns = [
     {
-      name: "User Name",
-      selector: (row) => users[row.user_id] || row.user_id,
+      name: "User",
+      selector: (row) => row.user_name || "System",
       sortable: true,
+      cell: (row) => (
+        <span className={row.user_id ? "" : "text-muted"}>
+          {row.user_name || "System"}
+        </span>
+      ),
     },
     {
       name: "Action",
       selector: (row) => row.action,
       sortable: true,
+      width: "100px",
+      cell: (row) => (
+        <span className={`badge bg-${['login'].includes(row.action) ? 'success' : ['insert','create','store'].includes(row.action) ? 'primary' : ['update'].includes(row.action) ? 'warning' : ['delete'].includes(row.action) ? 'danger' : 'secondary'}`}>
+          {row.action}
+        </span>
+      ),
     },
     {
-      name: "Table Name",
-      selector: (row) => row.table_name,
+      name: "Resource",
+      selector: (row) => row.table_name || "-",
       sortable: true,
+      width: "100px",
     },
     {
       name: "Record ID",
-      selector: (row) => row.record_id,
+      selector: (row) => row.record_id ?? "-",
       sortable: true,
+      width: "90px",
     },
     {
       name: "Message",
       selector: (row) => row.message,
       sortable: true,
       grow: 2,
+      wrap: true,
     },
     {
       name: "Logged At",
       selector: (row) => formatLoggedAt(row.created_at),
       sortable: true,
+      width: "200px",
     },
   ];
 
@@ -136,11 +142,7 @@ function LogsPage() {
   };
 
   return (
-    <div
-      className={`d-flex min-vh-100 ${
-        darkMode ? "bg-dark text-white" : "bg-light"
-      } overflow-hidden`}
-    >
+    <div className={`d-flex min-vh-100 ${darkMode ? "bg-dark text-white" : "bg-light"} overflow-hidden`}>
       <Sidebar collapsed={collapsed} />
       <div
         className="d-flex flex-column flex-grow-1"
@@ -159,19 +161,84 @@ function LogsPage() {
         />
         <div className="flex-grow-1 p-4">
           <h4 className="mb-3">Audit Trail</h4>
-          <div className="mb-3 d-flex justify-content-between align-items-center">
-            <input
-              type="text"
-              placeholder="Search audit trail..."
-              className="form-control w-50"
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-            />
-          </div>
+          <p className="text-muted small mb-3">
+            Track all user actions across the system including logins, create, update, and delete operations.
+          </p>
+
+          <form onSubmit={handleSearch} className="mb-3">
+            <div className="row g-2 align-items-end">
+              <div className="col-md-3">
+                <label className="form-label small">Search</label>
+                <input
+                  type="text"
+                  placeholder="Search audit trail..."
+                  className="form-control form-control-sm"
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                />
+              </div>
+              <div className="col-md-2">
+                <label className="form-label small">Action</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={actionFilter}
+                  onChange={(e) => setActionFilter(e.target.value)}
+                >
+                  <option value="">All actions</option>
+                  <option value="login">Login</option>
+                  <option value="insert">Insert</option>
+                  <option value="create">Create</option>
+                  <option value="update">Update</option>
+                  <option value="delete">Delete</option>
+                </select>
+              </div>
+              <div className="col-md-2">
+                <label className="form-label small">From date</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="col-md-2">
+                <label className="form-label small">To date</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+              <div className="col-md-2">
+                <button type="submit" className="btn btn-primary btn-sm">
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm ms-1"
+                  onClick={() => {
+                    setFilterText("");
+                    setActionFilter("");
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </form>
+
           <DataTable
             columns={columns}
-            data={filteredData}
+            data={logs}
+            progressPending={loading}
             pagination
+            paginationServer
+            paginationTotalRows={pagination.total}
+            paginationDefaultPage={pagination.current_page}
+            onChangePage={handlePageChange}
             highlightOnHover
             striped
             customStyles={customStyles}

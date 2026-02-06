@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use App\Services\AuditLogService;
 
 class DatabaseController extends Controller
 {
@@ -94,19 +95,8 @@ class DatabaseController extends Controller
                 // Password matches - login successful
                 unset($user['password']);
 
-                // ✅ Log the login action using user ID from database
-                try {
-                    $this->logAction(
-                        'login',
-                        'users',
-                        $user['id'],
-                        "User {$user['email']} logged in successfully",
-                        $user['id']
-                    );
-                } catch (\Exception $e) {
-                    // Log action failed, but continue with login
-                    Log::warning('Log action failed: ' . $e->getMessage());
-                }
+                // ✅ Log the login action
+                AuditLogService::log('login', 'users', $user['id'], "User {$user['email']} logged in successfully", (int) $user['id'], $request);
 
                 return response()->json([
                     'success' => true,
@@ -276,7 +266,9 @@ class DatabaseController extends Controller
 
             $id = DB::table($resolvedTable)->insertGetId($data);
 
-            $this->logAction('insert', $table, $id, "Inserted new record into {$table}", $userId);
+            $userId = $userId ?? AuditLogService::resolveUserId($request);
+            $msg = self::buildInsertMessage($table, $id, $data);
+            AuditLogService::log('insert', $table, $id, $msg, $userId, $request, null, $data);
 
             return response()->json([
                 'success' => true,
@@ -396,10 +388,15 @@ class DatabaseController extends Controller
                 $query->where($col, $val);
             }
 
+            $recordId = $conditions['id'] ?? null;
+            $oldRecord = $recordId ? DB::table($resolvedTable)->where('id', $recordId)->first() : null;
             $affected = $query->update($data);
 
             if ($affected > 0) {
-                $this->logAction('update', $table, $conditions['id'] ?? null, "Updated {$affected} record(s) in {$table}", $userId);
+                $userId = $userId ?? AuditLogService::resolveUserId($request);
+                $oldValues = $oldRecord ? (array) $oldRecord : null;
+                $msg = self::buildUpdateMessage($table, $affected, $recordId);
+                AuditLogService::log('update', $table, $recordId, $msg, $userId, $request, $oldValues, $data);
 
                 return response()->json([
                     'success' => true,
@@ -439,10 +436,13 @@ class DatabaseController extends Controller
                 $query->where($col, $val);
             }
 
+            $recordId = $conditions['id'] ?? null;
             $deleted = $query->delete();
 
             if ($deleted > 0) {
-                $this->logAction('delete', $table, null, "Deleted {$deleted} record(s) from {$table}", $userId);
+                $userId = $userId ?? AuditLogService::resolveUserId($request);
+                $msg = "Deleted {$deleted} record(s) from {$table}" . ($recordId ? " (ID: {$recordId})" : '');
+                AuditLogService::log('delete', $table, $recordId, $msg, $userId, $request);
 
                 return response()->json([
                     'success' => true,
@@ -475,7 +475,8 @@ class DatabaseController extends Controller
         try {
             $result = DB::select($sql, $bindings);
 
-            $this->logAction('custom', 'raw_sql', null, "Executed custom SQL: {$sql}", $userId);
+            $userId = $userId ?? AuditLogService::resolveUserId($request);
+            AuditLogService::log('custom', 'raw_sql', null, "Executed custom SQL: " . substr($sql, 0, 200), $userId, $request);
 
             return response()->json([
                 'success' => true,
@@ -491,16 +492,32 @@ class DatabaseController extends Controller
         }
     }
 
-    // ✅ LOG ACTION
-    private function logAction($action, $table, $recordId = null, $message = '', $userId = null)
+    private static function buildInsertMessage(string $table, $id, array $data): string
     {
-        DB::table('logs')->insert([
-            'user_id'    => $userId,
-            'action'     => $action,
-            'table_name' => $table,
-            'record_id'  => $recordId,
-            'message'    => $message,
-            'created_at' => now(),
-        ]);
+        $label = self::getRecordLabel($table, $data);
+        return "Created new record in {$table}" . ($id ? " (ID: {$id})" : '') . $label;
+    }
+
+    private static function buildUpdateMessage(string $table, int $affected, $recordId): string
+    {
+        return "Updated {$affected} record(s) in {$table}" . ($recordId ? " (ID: {$recordId})" : '');
+    }
+
+    private static function getRecordLabel(string $table, array $data): string
+    {
+        if ($table === 'users' && !empty($data['email'])) {
+            return " – {$data['email']}";
+        }
+        if ($table === 'class' && (!empty($data['course']) || !empty($data['section']))) {
+            $parts = array_filter([$data['course'] ?? '', $data['level'] ?? '', $data['section'] ?? '']);
+            return ' – ' . implode('-', $parts);
+        }
+        if ($table === 'rooms' && !empty($data['room_code'])) {
+            return " – {$data['room_code']}";
+        }
+        if ($table === 'subjects' && !empty($data['subject_code'])) {
+            return " – {$data['subject_code']}";
+        }
+        return '';
     }
 }

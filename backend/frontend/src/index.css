@@ -480,7 +480,7 @@ code, pre, kbd, samp, .mono {
   margin-left: var(--sidebar-width);
   flex: 1;
   width: calc(100% - var(--sidebar-width));
-  padding: 2rem 2.5rem;
+  padding: 0;
   min-height: 100vh;
   transition: margin-left 0.3s ease-in-out;
 }

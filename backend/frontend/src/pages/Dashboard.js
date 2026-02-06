@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDarkMode } from "../hooks/useDarkMode";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -18,9 +19,9 @@ import {
 } from 'chart.js';
 import { Doughnut, Bar, Line, Pie } from 'react-chartjs-2';
 // Import FontAwesome icons
-import { 
-  FaUsers, FaChalkboardTeacher, FaDoorOpen, FaCalendarAlt, FaBook, 
-  FaUserShield, FaUserCog, FaDoorClosed, 
+import {
+  FaUsers, FaChalkboardTeacher, FaDoorOpen, FaCalendarAlt, FaBook,
+  FaUserShield, FaUserCog, FaDoorClosed,
   FaClipboardList, FaClipboardCheck, FaClipboard, FaLayerGroup, FaRegStar,
   FaChartLine, FaPercent
 } from "react-icons/fa";
@@ -41,7 +42,7 @@ ChartJS.register(
 
 function Dashboard() {
   const user = sessionStorage.getItem("user") || "Guest";
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [time, setTime] = useState(new Date());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -84,12 +85,6 @@ function Dashboard() {
         console.error(`Failed to fetch ${ep.url}`, e);
       }
     });
-  };
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
   };
 
   const toggleSidebar = () => setCollapsed(!collapsed);
@@ -177,7 +172,7 @@ function Dashboard() {
         />
         <div className="flex-grow-1 p-4">
           <h4 className="mb-3">Dashboard Statistics</h4>
-          
+
           {/* Top Cards Matrix */}
           <div className="row mb-4">
             <div className="col-xl-3 col-md-6 mb-3">

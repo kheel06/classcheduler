@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
+import { useDarkMode } from "../hooks/useDarkMode";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import { apiFetch } from "../utils/api";
 import MobileSidebar from "../components/MobileSidebar";
 import DataTable from "react-data-table-component";
 import Swal from "sweetalert2";
 
 function RoomsManagement() {
   const user = sessionStorage.getItem("user") || "Guest";
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [filterText, setFilterText] = useState("");
@@ -35,9 +37,9 @@ function RoomsManagement() {
 
   const fetchRooms = async () => {
     try {
-      const res = await fetch(process.env.REACT_APP_API_URL + "rooms");
+      const res = await apiFetch("rooms");
       const data = await res.json();
-      setRooms(Array.isArray(data) ? data : []);
+      setRooms(Array.isArray(data) ? data : (data?.data ? data.data : []));
     } catch {
       setRooms([]);
     }
@@ -47,9 +49,8 @@ function RoomsManagement() {
   const handleAddRoom = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "rooms", {
+      const response = await apiFetch("rooms", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           room_name: formData.room_name,
           room_code: formData.room_code,
@@ -59,7 +60,7 @@ function RoomsManagement() {
           status: formData.status,
         }),
       });
-      
+
       if (response.ok) {
         Swal.fire("Success", "Room added successfully!", "success");
         fetchRooms();
@@ -77,9 +78,8 @@ function RoomsManagement() {
   const handleEditRoom = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "rooms/" + editRoomId, {
+      const response = await apiFetch("rooms/" + editRoomId, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           room_name: formData.room_name,
           room_code: formData.room_code,
@@ -89,7 +89,7 @@ function RoomsManagement() {
           status: formData.status,
         }),
       });
-      
+
       if (response.ok) {
         Swal.fire("Success", "Room updated successfully!", "success");
         fetchRooms();
@@ -106,10 +106,8 @@ function RoomsManagement() {
   // Delete room
   const handleDeleteRoom = async () => {
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "rooms/" + deleteRoomId, {
-        method: "DELETE",
-      });
-      
+      const response = await apiFetch("rooms/" + deleteRoomId, { method: "DELETE" });
+
       if (response.ok) {
         Swal.fire("Deleted!", "Room deleted successfully.", "success");
         fetchRooms();
@@ -125,13 +123,13 @@ function RoomsManagement() {
 
   // Modal open/close
   const openAddModal = () => {
-    setFormData({ 
-      room_name: "", 
-      room_code: "", 
-      campus_building: "", 
-      room_type: "", 
-      capacity: "", 
-      status: "Active" 
+    setFormData({
+      room_name: "",
+      room_code: "",
+      campus_building: "",
+      room_type: "",
+      capacity: "",
+      status: "Active"
     });
     setShowAddModal(true);
   };
@@ -143,7 +141,7 @@ function RoomsManagement() {
       campus_building: room.campus_building || "",
       room_type: room.room_type || "",
       capacity: String(room.capacity ?? ""),
-      status: room.status || "Active",
+      status: normalizeStatus(room.status),
     });
     setEditRoomId(id);
     setShowEditModal(true);
@@ -157,11 +155,6 @@ function RoomsManagement() {
   const closeDeleteModal = () => setShowDeleteModal(false);
 
   // Dark mode/sidebar
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
-  };
   const toggleSidebar = () => setCollapsed(!collapsed);
   const openMobileSidebar = () => setMobileSidebarOpen(true);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);
@@ -211,15 +204,15 @@ function RoomsManagement() {
     },
     {
       name: "Status",
-      selector: (row) => row.status || "Active",
+      selector: (row) => normalizeStatus(row.status),
       sortable: true,
       cell: (row) => {
+        const status = normalizeStatus(row.status);
         let badgeClass = "bg-secondary";
-        if (row.status === "Active") badgeClass = "bg-success";
-        else if (row.status === "Inactive") badgeClass = "bg-danger";
-        else if (row.status === "Under Renovation") badgeClass = "bg-warning text-dark";
-        
-        return <span className={`badge ${badgeClass}`}>{row.status}</span>;
+        if (status === "Active") badgeClass = "bg-success";
+        else if (status === "Inactive") badgeClass = "bg-danger";
+        else if (status === "Under Renovation") badgeClass = "bg-warning text-dark";
+        return <span className={`badge ${badgeClass}`}>{status}</span>;
       }
     },
     {
@@ -246,6 +239,30 @@ function RoomsManagement() {
     },
   ];
 
+    // Bestlink College of the Philippines - campus buildings & room types
+  const CAMPUS_BUILDINGS = [
+    "Main Building",
+    "Dr. Carino Hall",
+    "Vicente Building",
+    "San Agustin Building",
+  ];
+  const ROOM_TYPES = [
+    "Lecture Hall",
+    "Computer Lab",
+    "Science Laboratory",
+    "AVR",
+    "Library",
+    "Faculty Room",
+    "Office",
+    "Laboratory",
+    "Multi-Purpose Hall",
+  ];
+  const normalizeStatus = (s) => {
+    if (s === 0 || s === "0") return "Active";
+    if (s === 1 || s === "1") return "Inactive";
+    return s || "Active";
+  };
+
   const customStyles = {
     headCells: { style: { fontWeight: "bold", fontSize: "14px" } },
     rows: { style: { fontSize: "14px" } },
@@ -270,7 +287,10 @@ function RoomsManagement() {
           openMobileSidebar={openMobileSidebar}
         />
         <div className="flex-grow-1 p-4">
-          <h4 className="mb-3">Rooms Management</h4>
+          <div className="mb-3">
+            <h4 className="mb-1">Rooms Management</h4>
+            <p className="text-muted small mb-0">Bestlink College of the Philippines — Main, MV & San Agustin Campuses</p>
+          </div>
           <div className="mb-3 d-flex justify-content-between align-items-center">
             <input
               type="text"
@@ -331,23 +351,39 @@ function RoomsManagement() {
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Campus Building</label>
-                      <input
-                        type="text"
+                      <select
                         className="form-control"
                         value={formData.campus_building}
                         onChange={(e) => setFormData({ ...formData, campus_building: e.target.value })}
                         required
-                      />
+                      >
+                        <option value="">Select building</option>
+                        {formData.campus_building && !CAMPUS_BUILDINGS.includes(formData.campus_building) && (
+                          <option value={formData.campus_building}>{formData.campus_building}</option>
+                        )}
+                        {CAMPUS_BUILDINGS.map((b) => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Room Type</label>
-                      <input
-                        type="text"
+                      <select
                         className="form-control"
                         value={formData.room_type}
                         onChange={(e) => setFormData({ ...formData, room_type: e.target.value })}
                         required
-                      />
+                      >
+                        <option value="">Select type</option>
+                        {formData.room_type && !ROOM_TYPES.includes(formData.room_type) && (
+                          <option value={formData.room_type}>{formData.room_type}</option>
+                        )}
+                        {ROOM_TYPES.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Capacity</label>
@@ -424,23 +460,39 @@ function RoomsManagement() {
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Campus Building</label>
-                      <input
-                        type="text"
+                      <select
                         className="form-control"
                         value={formData.campus_building}
                         onChange={(e) => setFormData({ ...formData, campus_building: e.target.value })}
                         required
-                      />
+                      >
+                        <option value="">Select building</option>
+                        {formData.campus_building && !CAMPUS_BUILDINGS.includes(formData.campus_building) && (
+                          <option value={formData.campus_building}>{formData.campus_building}</option>
+                        )}
+                        {CAMPUS_BUILDINGS.map((b) => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Room Type</label>
-                      <input
-                        type="text"
+                      <select
                         className="form-control"
                         value={formData.room_type}
                         onChange={(e) => setFormData({ ...formData, room_type: e.target.value })}
                         required
-                      />
+                      >
+                        <option value="">Select type</option>
+                        {formData.room_type && !ROOM_TYPES.includes(formData.room_type) && (
+                          <option value={formData.room_type}>{formData.room_type}</option>
+                        )}
+                        {ROOM_TYPES.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div className="mb-2">
                       <label className="form-label">Capacity</label>

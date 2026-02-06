@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import  Sidebar from "../components/Sidebar";
+import { useDarkMode } from "../hooks/useDarkMode";
+import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import { apiFetch } from "../utils/api";
 import Footer from "../components/Footer";
 import MobileSidebar from "../components/MobileSidebar";
 import DataTable from "react-data-table-component";
@@ -10,7 +12,7 @@ const initialClasses = [];
 
 function ClassesManagement() {
   const user = sessionStorage.getItem("user") || "Guest";
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [filterText, setFilterText] = useState("");
@@ -32,11 +34,10 @@ function ClassesManagement() {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const response = await apiFetch("select", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ table: "class" }),
-        });
+        }, true);
         const result = await response.json();
         if (result.success && Array.isArray(result.data)) {
           setClasses(result.data);
@@ -52,23 +53,18 @@ function ClassesManagement() {
   const handleAddClass = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(process.env.REACT_APP_API_URL + "insert", {
+      const response = await apiFetch("insert", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          table: "class",
-          data: formData,
-        }),
-      });
+        body: JSON.stringify({ table: "class", data: formData }),
+      }, true);
       const result = await response.json();
       if (result.success) {
         Swal.fire("Success", "Program added successfully!", "success");
         // Refetch classes
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const res = await apiFetch("select", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ table: "class" }),
-        });
+        }, true);
         const data = await res.json();
         setClasses(data.data || []);
         closeAddModal();
@@ -97,11 +93,10 @@ function ClassesManagement() {
       if (result.success) {
         Swal.fire("Success", "Program updated successfully!", "success");
         // Refetch classes
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const res = await apiFetch("select", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ table: "class" }),
-        });
+        }, true);
         const data = await res.json();
         setClasses(data.data || []);
         closeEditModal();
@@ -128,11 +123,10 @@ function ClassesManagement() {
       if (result.success) {
         Swal.fire("Deleted!", "Program deleted successfully.", "success");
         // Refetch classes
-        const res = await fetch(process.env.REACT_APP_API_URL + "select", {
+        const res = await apiFetch("select", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ table: "class" }),
-        });
+        }, true);
         const data = await res.json();
         setClasses(data.data || []);
         closeDeleteModal();
@@ -168,11 +162,6 @@ function ClassesManagement() {
   const closeDeleteModal = () => setShowDeleteModal(false);
 
   // Dark mode/sidebar
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("bg-dark");
-    document.body.classList.toggle("text-white");
-  };
   const toggleSidebar = () => setCollapsed(!collapsed);
   const openMobileSidebar = () => setMobileSidebarOpen(true);
   const closeMobileSidebar = () => setMobileSidebarOpen(false);

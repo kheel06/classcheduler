@@ -57,19 +57,8 @@ class DatabaseSeeder extends Seeder
             $teacherIds[] = $u->id;
         }
 
-        // 2. Rooms
-        $rooms = [
-            ['room_number' => 'LB482', 'room_name' => 'room 101', 'room_code' => '205A', 'campus_building' => 'MV', 'room_type' => 'RM', 'capacity' => 50, 'status' => 'Active'],
-            ['room_number' => 'LB483', 'room_name' => 'room 102', 'room_code' => '205B', 'campus_building' => 'AC', 'room_type' => 'RM', 'capacity' => 50, 'status' => 'Inactive'],
-            ['room_number' => 'LB484', 'room_name' => 'room 103', 'room_code' => '205C', 'campus_building' => 'MV', 'room_type' => 'LAB', 'capacity' => 50, 'status' => 'Active'],
-            ['room_number' => 'AVR1', 'room_name' => 'room 104', 'room_code' => '205D', 'campus_building' => 'MV', 'room_type' => 'LECTURE_HALL', 'capacity' => 30, 'status' => 'Inactive'],
-            ['room_number' => 'LEC301', 'room_name' => 'room 105', 'room_code' => '205E', 'campus_building' => 'MC', 'room_type' => 'RT', 'capacity' => 10, 'status' => 'Inactive'],
-            ['room_number' => 'LB485', 'room_name' => 'room 16', 'room_code' => '205F', 'campus_building' => 'MV', 'room_type' => 'LAB', 'capacity' => 50, 'status' => 'Active'],
-        ];
-
-        foreach ($rooms as $r) {
-            \App\Models\Room::firstOrCreate(['room_code' => $r['room_code']], $r);
-        }
+        // 2. Rooms - Bestlink College of the Philippines
+        $this->call(RoomSeeder::class);
 
         // 3. Subjects
         $subjects = [

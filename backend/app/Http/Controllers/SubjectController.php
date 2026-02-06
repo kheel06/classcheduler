@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Subject;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 
 class SubjectController extends Controller
@@ -54,6 +55,7 @@ class SubjectController extends Controller
         ]);
 
         $subject = Subject::create($validated);
+        AuditLogService::log('create', 'subjects', $subject->id, "Created subject {$subject->subject_code} ({$subject->subject_name})", null, $request, null, $validated);
 
         return response()->json($subject, 201);
     }
@@ -84,7 +86,9 @@ class SubjectController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $oldValues = $subject->toArray();
         $subject->update($validated);
+        AuditLogService::log('update', 'subjects', $id, "Updated subject {$subject->subject_code} ({$subject->subject_name})", null, $request, $oldValues, $validated);
 
         return response()->json($subject);
     }
@@ -95,7 +99,10 @@ class SubjectController extends Controller
     public function destroy(string $id)
     {
         $subject = Subject::findOrFail($id);
+        $subjectCode = $subject->subject_code;
+        $subjectName = $subject->subject_name;
         $subject->delete();
+        AuditLogService::log('delete', 'subjects', $id, "Deleted subject {$subjectCode} ({$subjectName})", null, request());
 
         return response()->json(['message' => 'Subject deleted successfully']);
     }
